@@ -10,11 +10,20 @@ import {
   ArrowRight, 
   FileCheck, 
   Trophy, 
-  HelpCircle
+  HelpCircle,
+  FileText,
+  Sliders
 } from 'lucide-react';
 import { formatDateTime, formatCurrency } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
+
+interface JudgingCriterionItem {
+  id?: string;
+  name: string;
+  maxScore: number;
+  description?: string;
+}
 
 interface EventPageProps {
   params: Promise<{ eventSlug: string }>;
@@ -140,6 +149,18 @@ export default async function EventDetailPage({ params }: EventPageProps) {
                 <HelpCircle className="h-4 w-4" />
               </Link>
             </div>
+
+            {event.rulebookUrl && (
+              <a
+                href={event.rulebookUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-md text-xs font-semibold bg-violet-50 dark:bg-violet-950/80 text-violet-700 dark:text-violet-300 border border-violet-200 dark:border-violet-800 hover:bg-violet-100 dark:hover:bg-violet-900 transition-colors shadow-xs"
+              >
+                <FileText className="h-3.5 w-3.5" />
+                <span>Download Rulebook (PDF)</span>
+              </a>
+            )}
           </div>
         </div>
 
@@ -206,6 +227,49 @@ export default async function EventDetailPage({ params }: EventPageProps) {
               )}
             </div>
           </div>
+
+          {/* Official Judging Rubric & Criteria */}
+          {Array.isArray(event.judgingCriteria) && event.judgingCriteria.length > 0 && (
+            <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-6 space-y-4 shadow-xs">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-200 dark:border-zinc-800 pb-3">
+                <div>
+                  <h2 className="text-base font-bold text-zinc-900 dark:text-zinc-100 tracking-tight flex items-center gap-2">
+                    <Sliders className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+                    Official Evaluation Rubric & Criteria
+                  </h2>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                    Evaluated exclusively by certified Judges. Organizers are prohibited from scoring entries.
+                  </p>
+                </div>
+                <span className="text-xs font-mono font-bold text-violet-600 dark:text-violet-400">
+                  Total: {(event.judgingCriteria as unknown as JudgingCriterionItem[]).reduce((a, b) => a + Number(b.maxScore || 0), 0)} Points
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {(event.judgingCriteria as unknown as JudgingCriterionItem[]).map((crit, idx) => (
+                  <div
+                    key={crit.id || idx}
+                    className="p-3.5 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/40 text-xs space-y-1"
+                  >
+                    <div className="flex justify-between items-center">
+                      <span className="font-semibold text-zinc-800 dark:text-zinc-200">
+                        {idx + 1}. {crit.name}
+                      </span>
+                      <span className="font-mono text-violet-600 dark:text-violet-400 font-bold">
+                        {crit.maxScore} pts
+                      </span>
+                    </div>
+                    {crit.description && (
+                      <p className="text-[11px] text-zinc-500 dark:text-zinc-400 leading-relaxed">
+                        {crit.description}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Submission Section for Participants */}
           <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-6 space-y-4 shadow-xs">

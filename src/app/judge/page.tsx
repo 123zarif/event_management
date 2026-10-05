@@ -2,7 +2,7 @@ import React from 'react';
 import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth';
-import { Trophy, ExternalLink, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { Trophy, ExternalLink, ArrowRight, CheckCircle2, ShieldAlert } from 'lucide-react';
 import { GithubIcon } from '@/components/Icons';
 import { redirect } from 'next/navigation';
 
@@ -54,6 +54,19 @@ export default async function JudgePortalPage() {
           <ArrowRight className="h-3.5 w-3.5" />
         </Link>
       </div>
+
+      {/* Role Alert Banner if Organizer/Admin */}
+      {user.role !== 'JUDGE' && (
+        <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-200 flex items-start gap-3">
+          <ShieldAlert className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+          <div className="text-xs space-y-1">
+            <p className="font-bold tracking-tight">Fair-Play Auditing Mode Active</p>
+            <p className="text-amber-800 dark:text-amber-300/90 leading-relaxed">
+              You are viewing this queue as an <strong>{user.role}</strong>. Organizers and Admins cannot evaluate or score submitted student projects. You may inspect submissions and review existing scores for logistical auditing, but scoring actions are locked strictly to official certified Judges.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Submissions List */}
       <div className="space-y-4">

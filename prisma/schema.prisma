@@ -124,6 +124,8 @@ model Event {
   title                String
   description          String
   rules                String?
+  rulebookUrl          String?
+  judgingCriteria      Json?
   category             EventCategory @default(CONTEST)
   festId               String
   venue                String

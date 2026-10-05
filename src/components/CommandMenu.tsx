@@ -50,8 +50,9 @@ export function CommandMenu({ isOpen, onClose, currentUser }: CommandMenuProps) 
     { title: 'Contestant Help Desk', category: 'Support', href: '/support', icon: HelpCircle, roles: ['ATTENDEE', 'ORGANIZER', 'ADMIN'] },
     { title: 'Verify Digital Certificate', category: 'Verification', href: '/verify-certificate', icon: ShieldCheck },
     { title: 'Organizer Admin Dashboard', category: 'Management', href: '/admin', icon: Users, roles: ['ORGANIZER', 'ADMIN'] },
+    { title: 'Create New Competition Track', category: 'Management', href: '/admin/events/new', icon: Trophy, roles: ['ORGANIZER', 'ADMIN'] },
     { title: 'Webcam QR Check-in Scanner', category: 'Management', href: '/admin/scanner', icon: ShieldCheck, roles: ['ORGANIZER', 'ADMIN'] },
-    { title: 'Judge Evaluation Scoring Portal', category: 'Judging', href: '/judge', icon: Trophy, roles: ['JUDGE', 'ORGANIZER', 'ADMIN'] },
+    { title: 'Judge Evaluation Scoring Portal', category: 'Judging', href: '/judge', icon: Trophy, roles: ['JUDGE'] },
   ];
 
   // Filter items by role (strict RBAC invisibility)

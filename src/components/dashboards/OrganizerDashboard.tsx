@@ -10,7 +10,8 @@ import {
   HelpCircle,
   Shield,
   Activity,
-  Zap
+  Zap,
+  Plus
 } from 'lucide-react';
 import { formatDateTime } from '@/lib/utils';
 
@@ -79,11 +80,18 @@ export async function OrganizerDashboard({ currentUser }: OrganizerDashboardProp
         {/* Operational Quick Actions Strip */}
         <div className="flex flex-wrap items-center gap-2 shrink-0">
           <Link
-            href="/admin/scanner"
+            href="/admin/events/new"
             className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-md text-xs font-semibold bg-violet-600 text-white hover:bg-violet-700 dark:hover:bg-violet-500 transition-colors shadow-xs"
           >
-            <QrCode className="h-4 w-4" />
-            <span>Launch Gate Scanner</span>
+            <Plus className="h-4 w-4" />
+            <span>+ Create Competition</span>
+          </Link>
+          <Link
+            href="/admin/scanner"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-md text-xs font-semibold bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors shadow-xs"
+          >
+            <QrCode className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+            <span>Launch Scanner</span>
           </Link>
           <Link
             href="/admin/participants"

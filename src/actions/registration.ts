@@ -269,3 +269,182 @@ export async function verifyAndCheckInTicket(ticketCode: string, actorId?: strin
     return { success: false, message: err.message || 'Check-in failed' };
   }
 }
+
+export interface MultiRegisterResult {
+  success: boolean;
+  message: string;
+  registrations: Array<{
+    eventId: string;
+    eventTitle: string;
+    eventSlug: string;
+    ticketCode: string;
+    status: RegistrationStatus;
+  }>;
+  skipped: Array<{
+    eventId: string;
+    eventTitle: string;
+    reason: string;
+  }>;
+}
+
+export async function registerForMultipleEvents(
+  eventIds: string[],
+  userId: string
+): Promise<MultiRegisterResult> {
+  try {
+    if (!eventIds || eventIds.length === 0) {
+      return {
+        success: false,
+        message: 'No events selected.',
+        registrations: [],
+        skipped: [],
+      };
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      return {
+        success: false,
+        message: 'User account not found. Please log in first.',
+        registrations: [],
+        skipped: [],
+      };
+    }
+
+    const events = await prisma.event.findMany({
+      where: { id: { in: eventIds } },
+    });
+
+    const registrations: MultiRegisterResult['registrations'] = [];
+    const skipped: MultiRegisterResult['skipped'] = [];
+
+    const now = new Date();
+
+    for (const event of events) {
+      // 1. Deadline check
+      if (now > new Date(event.registrationDeadline)) {
+        skipped.push({
+          eventId: event.id,
+          eventTitle: event.title,
+          reason: 'Registration deadline has passed',
+        });
+        continue;
+      }
+
+      // 2. Existing registration check
+      const existing = await prisma.registration.findFirst({
+        where: {
+          eventId: event.id,
+          userId,
+          status: { not: RegistrationStatus.CANCELLED },
+        },
+      });
+
+      if (existing) {
+        skipped.push({
+          eventId: event.id,
+          eventTitle: event.title,
+          reason: 'Already registered for this event',
+        });
+        continue;
+      }
+
+      // 3. Capacity check
+      const confirmedCount = await prisma.registration.count({
+        where: {
+          eventId: event.id,
+          status: { in: [RegistrationStatus.CONFIRMED, RegistrationStatus.CHECKED_IN] },
+        },
+      });
+
+      const isCapacityFull = confirmedCount >= event.capacity;
+      const initialStatus = isCapacityFull ? RegistrationStatus.WAITLISTED : RegistrationStatus.CONFIRMED;
+
+      // 4. Generate ticket
+      const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+      const prefix = event.title
+        .split(' ')
+        .map((w) => w[0])
+        .join('')
+        .substring(0, 3)
+        .toUpperCase();
+      const ticketCode = `TC26-${prefix}-${randomSuffix}`;
+
+      const qrPayload = JSON.stringify({
+        ticketCode,
+        eventId: event.id,
+        event: event.title,
+        userId,
+        status: initialStatus,
+      });
+
+      // 5. Create Registration
+      const reg = await prisma.registration.create({
+        data: {
+          eventId: event.id,
+          userId,
+          status: initialStatus,
+          ticketCode,
+          qrCodeData: qrPayload,
+          responses: {},
+        },
+      });
+
+      // Audit Log
+      await prisma.auditLog.create({
+        data: {
+          action: isCapacityFull ? 'WAITLIST_JOINED' : 'REGISTRATION_CREATED',
+          entityType: 'Registration',
+          entityId: reg.id,
+          actorId: userId,
+          metadata: {
+            eventTitle: event.title,
+            status: initialStatus,
+            ticketCode,
+            flow: 'MULTI_EVENT_BUNDLE',
+          },
+        },
+      });
+
+      registrations.push({
+        eventId: event.id,
+        eventTitle: event.title,
+        eventSlug: event.slug,
+        ticketCode,
+        status: initialStatus,
+      });
+    }
+
+    revalidatePath('/my-registrations');
+    revalidatePath('/events');
+    revalidatePath('/admin/participants');
+
+    if (registrations.length === 0) {
+      return {
+        success: false,
+        message: 'No new registrations were completed (selected events were either full, expired, or already registered).',
+        registrations: [],
+        skipped,
+      };
+    }
+
+    return {
+      success: true,
+      message: `Successfully registered for ${registrations.length} event${registrations.length > 1 ? 's' : ''}!`,
+      registrations,
+      skipped,
+    };
+  } catch (error: unknown) {
+    const err = error as Error;
+    return {
+      success: false,
+      message: err.message || 'Multi-event registration failed',
+      registrations: [],
+      skipped: [],
+    };
+  }
+}
+

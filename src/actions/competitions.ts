@@ -76,51 +76,60 @@ export async function submitJudgeScore(
   submissionId: string,
   judgeId: string,
   scores: {
-    festDirectoryUX: number;
-    registrationSystem: number;
-    organizerManagement: number;
-    bonusSolutions: number;
+    festDirectoryUX?: number;
+    registrationSystem?: number;
+    organizerManagement?: number;
+    bonusSolutions?: number;
+    dynamicCriteria?: Record<string, number>;
     feedback?: string;
   }
 ) {
   try {
     const user = await getCurrentUser();
-    if (!user || (user.role !== 'JUDGE' && user.role !== 'ORGANIZER' && user.role !== 'ADMIN')) {
-      return { success: false, message: 'Unauthorized: Contest Judge credentials required' };
+    // FAIR-PLAY ENFORCEMENT: Strictly prohibit Organizers and Admins from judging submitted projects
+    if (!user || user.role !== 'JUDGE') {
+      return { 
+        success: false, 
+        message: 'Access Denied: Only certified Judges can evaluate and submit scores. Organizers and Admins are prohibited from judging to preserve competition integrity.' 
+      };
     }
 
-    const totalScore =
-      Number(scores.festDirectoryUX) +
-      Number(scores.registrationSystem) +
-      Number(scores.organizerManagement) +
-      Number(scores.bonusSolutions);
+    let criteriaBreakdown: Record<string, number> = {};
+    let totalScore = 0;
+
+    if (scores.dynamicCriteria && Object.keys(scores.dynamicCriteria).length > 0) {
+      criteriaBreakdown = { ...scores.dynamicCriteria };
+      totalScore = Object.values(scores.dynamicCriteria).reduce((acc, val) => acc + Number(val || 0), 0);
+    } else {
+      criteriaBreakdown = {
+        festDirectoryUX: Number(scores.festDirectoryUX || 0),
+        registrationSystem: Number(scores.registrationSystem || 0),
+        organizerManagement: Number(scores.organizerManagement || 0),
+        bonusSolutions: Number(scores.bonusSolutions || 0),
+      };
+      totalScore =
+        criteriaBreakdown.festDirectoryUX +
+        criteriaBreakdown.registrationSystem +
+        criteriaBreakdown.organizerManagement +
+        criteriaBreakdown.bonusSolutions;
+    }
 
     const judgeScore = await prisma.judgeScore.upsert({
       where: {
         submissionId_judgeId: {
           submissionId,
-          judgeId,
+          judgeId: user.id,
         },
       },
       create: {
         submissionId,
-        judgeId,
-        criteriaBreakdown: {
-          festDirectoryUX: scores.festDirectoryUX,
-          registrationSystem: scores.registrationSystem,
-          organizerManagement: scores.organizerManagement,
-          bonusSolutions: scores.bonusSolutions,
-        },
+        judgeId: user.id,
+        criteriaBreakdown,
         totalScore,
         feedback: scores.feedback,
       },
       update: {
-        criteriaBreakdown: {
-          festDirectoryUX: scores.festDirectoryUX,
-          registrationSystem: scores.registrationSystem,
-          organizerManagement: scores.organizerManagement,
-          bonusSolutions: scores.bonusSolutions,
-        },
+        criteriaBreakdown,
         totalScore,
         feedback: scores.feedback,
       },
