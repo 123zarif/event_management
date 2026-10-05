@@ -1,0 +1,13 @@
+# Production Caddyfile with Automatic HTTPS
+# Replace :80 with your domain (e.g. event.yourdomain.com) when deploying to VPS
+
+:80 {
+    reverse_proxy web:3000
+    encode gzip zstd
+}
+
+# Example with custom domain:
+# event.yourdomain.com {
+#     reverse_proxy web:3000
+#     encode gzip zstd
+# }
