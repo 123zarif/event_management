@@ -10,6 +10,10 @@ export async function GET(
     const { submissionId } = await params;
     const user = await getCurrentUser();
 
+    if (!user || (user.role !== 'JUDGE' && user.role !== 'ORGANIZER' && user.role !== 'ADMIN')) {
+      return NextResponse.json({ error: 'Unauthorized: Judge credentials required' }, { status: 403 });
+    }
+
     const submission = await prisma.submission.findUnique({
       where: { id: submissionId },
       include: {

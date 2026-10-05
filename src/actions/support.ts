@@ -1,6 +1,7 @@
 'use server';
 
 import { prisma } from '@/lib/prisma';
+import { getCurrentUser } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 import { SupportCategory, SupportPriority, TicketStatus } from '@prisma/client';
 
@@ -84,6 +85,11 @@ export async function replyToSupportTicket(ticketId: string, senderId: string, m
 
 export async function updateSupportTicketStatus(ticketId: string, status: TicketStatus, assignedToId?: string) {
   try {
+    const caller = await getCurrentUser();
+    if (!caller || (caller.role !== 'ORGANIZER' && caller.role !== 'ADMIN')) {
+      return { success: false, message: 'Unauthorized: Organizer privileges required' };
+    }
+
     const updated = await prisma.supportTicket.update({
       where: { id: ticketId },
       data: {

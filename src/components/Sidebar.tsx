@@ -40,25 +40,62 @@ export function Sidebar({ currentUser, collapsed, mobileOpen, onCloseMobile }: S
     await switchPersonaAction(email);
   };
 
-  const navGroups = [
-    {
-      title: 'Platform',
-      items: [
-        { label: 'Overview', href: '/', icon: Trophy },
-        { label: 'Fests Directory', href: '/fests', icon: Calendar },
-        { label: 'Competitions', href: '/events', icon: Trophy },
-        { label: 'Live Standings', href: '/leaderboards', icon: Layers },
-      ],
-    },
-    {
+  // Build role-tailored navigation groups (Strict feature invisibility)
+  const navGroups: Array<{
+    title: string;
+    items: Array<{
+      label: string;
+      href: string;
+      icon: React.ComponentType<{ className?: string }>;
+      badge?: string;
+    }>;
+  }> = [];
+
+  // 1. Common Platform Group (Available to all)
+  navGroups.push({
+    title: 'Platform',
+    items: [
+      { label: 'Overview', href: '/', icon: Trophy },
+      { label: 'Fests Directory', href: '/fests', icon: Calendar },
+      { label: 'Competitions', href: '/events', icon: Trophy },
+      { label: 'Live Standings', href: '/leaderboards', icon: Layers },
+    ],
+  });
+
+  // 2. Contestant Space (Visible to Attendee, Organizer, or authenticated user)
+  if (currentRole === 'ATTENDEE' || currentRole === 'ORGANIZER' || currentRole === 'ADMIN') {
+    navGroups.push({
       title: 'Contestant Space',
       items: [
         { label: 'My Registrations', href: '/my-registrations', icon: Ticket },
         { label: 'Help Desk (Tickets)', href: '/support', icon: HelpCircle },
         { label: 'Verify Certificate', href: '/verify-certificate', icon: ShieldCheck },
       ],
-    },
-    {
+    });
+  } else if (!currentRole) {
+    // Guest: only verify certificate
+    navGroups.push({
+      title: 'Credentials',
+      items: [
+        { label: 'Verify Certificate', href: '/verify-certificate', icon: ShieldCheck },
+      ],
+    });
+  }
+
+  // 3. Judge Portal (Only for JUDGE, ORGANIZER, or ADMIN)
+  if (currentRole === 'JUDGE') {
+    navGroups.push({
+      title: 'Judge Portal',
+      items: [
+        { label: 'Judge Scoring Suite', href: '/judge', icon: Award, badge: 'Scoring' },
+        { label: 'Verify Certificate', href: '/verify-certificate', icon: ShieldCheck },
+      ],
+    });
+  }
+
+  // 4. Operations & Staff (STRICTLY for ORGANIZER and ADMIN only)
+  if (currentRole === 'ORGANIZER' || currentRole === 'ADMIN') {
+    navGroups.push({
       title: 'Operations & Staff',
       items: [
         { label: 'Admin Command', href: '/admin', icon: Shield, badge: 'Staff' },
@@ -66,10 +103,10 @@ export function Sidebar({ currentUser, collapsed, mobileOpen, onCloseMobile }: S
         { label: 'QR Gate Scanner', href: '/admin/scanner', icon: QrCode, badge: 'Live' },
         { label: 'Support Queue', href: '/admin/support', icon: LifeBuoy },
         { label: 'Security Audit Log', href: '/admin/audit-logs', icon: History },
-        { label: 'Judge Scoring Suite', href: '/judge', icon: Award, badge: 'Judges' },
+        { label: 'Judge Evaluation Suite', href: '/judge', icon: Award, badge: 'Judges' },
       ],
-    },
-  ];
+    });
+  }
 
   return (
     <>
@@ -134,7 +171,7 @@ export function Sidebar({ currentUser, collapsed, mobileOpen, onCloseMobile }: S
           </div>
         )}
 
-        {/* Navigation Groups */}
+        {/* Navigation Groups (Filtered strictly by role) */}
         <div className="flex-1 overflow-y-auto px-3 py-3 space-y-5">
           {navGroups.map((group) => (
             <div key={group.title} className="space-y-1">

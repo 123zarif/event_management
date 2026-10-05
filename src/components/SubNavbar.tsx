@@ -25,21 +25,46 @@ interface SubNavbarProps {
 
 export function SubNavbar({ currentUser }: SubNavbarProps) {
   const pathname = usePathname();
-  const isOrganizer = currentUser?.role === 'ORGANIZER' || currentUser?.role === 'ADMIN';
-  const isJudge = currentUser?.role === 'JUDGE';
+  const currentRole = currentUser?.role;
 
-  const tabs = [
-    { label: 'Overview', href: '/', icon: Trophy },
-    { label: 'Competitions', href: '/events', icon: Trophy, count: '6' },
-    { label: 'Fests', href: '/fests', icon: Calendar },
-    { label: 'Live Standings', href: '/leaderboards', icon: Layers, highlight: true },
-    { label: 'Help Desk', href: '/support', icon: HelpCircle },
-    { label: 'My Passes', href: '/my-registrations', icon: Ticket },
-    { label: 'QR Check-in', href: '/admin/scanner', icon: QrCode, badge: isOrganizer ? 'Active' : 'Scanner' },
-    { label: 'Organizer Ops', href: '/admin', icon: Shield, badge: isOrganizer ? 'Staff' : undefined },
-    { label: 'Judge Suite', href: '/judge', icon: Award, badge: isJudge ? 'Judge' : undefined },
-    { label: 'Verify Cert', href: '/verify-certificate', icon: ShieldCheck },
-  ];
+  // Build role-tailored horizontal tabs (Strict feature invisibility)
+  const tabs: Array<{
+    label: string;
+    href: string;
+    icon: React.ComponentType<{ className?: string }>;
+    count?: string;
+    badge?: string;
+    highlight?: boolean;
+  }> = [];
+
+  // 1. Core tabs
+  tabs.push({ label: 'Overview', href: '/', icon: Trophy });
+  tabs.push({ label: 'Competitions', href: '/events', icon: Trophy, count: '6' });
+
+  // 2. Fests (for guests, attendees, organizers)
+  if (currentRole !== 'JUDGE') {
+    tabs.push({ label: 'Fests', href: '/fests', icon: Calendar });
+  }
+
+  // 3. Standings (always useful for all)
+  tabs.push({ label: 'Live Standings', href: '/leaderboards', icon: Layers, highlight: true });
+
+  // 4. Role-specific items
+  if (currentRole === 'ATTENDEE') {
+    tabs.push({ label: 'My Passes', href: '/my-registrations', icon: Ticket });
+    tabs.push({ label: 'Help Desk', href: '/support', icon: HelpCircle });
+  } else if (currentRole === 'JUDGE') {
+    tabs.push({ label: 'Judge Suite', href: '/judge', icon: Award, badge: 'Scoring' });
+  } else if (currentRole === 'ORGANIZER' || currentRole === 'ADMIN') {
+    tabs.push({ label: 'Organizer Ops', href: '/admin', icon: Shield, badge: 'Staff' });
+    tabs.push({ label: 'QR Check-in', href: '/admin/scanner', icon: QrCode, badge: 'Live' });
+    tabs.push({ label: 'Judge Suite', href: '/judge', icon: Award });
+    tabs.push({ label: 'Help Desk Queue', href: '/admin/support', icon: HelpCircle });
+    tabs.push({ label: 'My Passes', href: '/my-registrations', icon: Ticket });
+  }
+
+  // 5. Verifier (available to all)
+  tabs.push({ label: 'Verify Cert', href: '/verify-certificate', icon: ShieldCheck });
 
   return (
     <div className="w-full border-b border-zinc-200 dark:border-zinc-800 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-xs px-4 sm:px-6 lg:px-8 overflow-x-auto scrollbar-none transition-colors">

@@ -66,7 +66,7 @@ export function AppNavigation({ currentUser, children }: AppNavigationProps) {
       </div>
 
       {/* ⌘K Global Command Palette */}
-      <CommandMenu isOpen={commandOpen} onClose={() => setCommandOpen(false)} />
+      <CommandMenu isOpen={commandOpen} onClose={() => setCommandOpen(false)} currentUser={currentUser} />
     </div>
   );
 }

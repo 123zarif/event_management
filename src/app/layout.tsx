@@ -1,7 +1,9 @@
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
+import { Suspense } from 'react';
 import { AppNavigation } from '@/components/AppNavigation';
+import { AccessDeniedToast } from '@/components/AccessDeniedToast';
 import { getCurrentUser } from '@/lib/auth';
 import { Toaster } from 'sonner';
 
@@ -54,6 +56,9 @@ export default async function RootLayout({
         <AppNavigation currentUser={currentUser}>
           {children}
         </AppNavigation>
+        <Suspense fallback={null}>
+          <AccessDeniedToast />
+        </Suspense>
         <Toaster position="bottom-right" richColors />
       </body>
     </html>

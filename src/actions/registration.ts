@@ -1,6 +1,7 @@
 'use server';
 
 import { prisma } from '@/lib/prisma';
+import { getCurrentUser } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 import { RegistrationStatus } from '@prisma/client';
 
@@ -196,6 +197,11 @@ export async function cancelRegistration(ticketCode: string): Promise<{ success:
 
 export async function verifyAndCheckInTicket(ticketCode: string, actorId?: string) {
   try {
+    const caller = await getCurrentUser();
+    if (!caller || (caller.role !== 'ORGANIZER' && caller.role !== 'ADMIN')) {
+      return { success: false, message: 'Unauthorized: Gate check-in requires Organizer privileges' };
+    }
+
     const reg = await prisma.registration.findUnique({
       where: { ticketCode },
       include: {
