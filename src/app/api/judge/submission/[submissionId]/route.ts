@@ -30,9 +30,23 @@ export async function GET(
 
     const myScore = submission.scores && submission.scores.length > 0 ? submission.scores[0] : null;
 
+    let isAssigned = false;
+    if (user.role === 'JUDGE') {
+      const assignment = await prisma.eventJudge.findUnique({
+        where: {
+          eventId_judgeId: {
+            eventId: submission.eventId,
+            judgeId: user.id,
+          },
+        },
+      });
+      isAssigned = !!assignment;
+    }
+
     return NextResponse.json({
       ...submission,
       myScore,
+      isAssigned,
     });
   } catch {
     return NextResponse.json({ error: 'Failed' }, { status: 500 });

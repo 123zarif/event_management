@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createEvent, JudgingCriterionInput } from '@/actions/events';
+import { createCategory } from '@/actions/categories';
 import { EventCategory } from '@prisma/client';
 import { 
   ArrowLeft, 
@@ -16,9 +17,21 @@ import {
   Sliders, 
   Layers, 
   ShieldAlert,
-  Loader2
+  Loader2,
+  Trophy,
+  Calendar,
+  Tag,
+  X
 } from 'lucide-react';
 import { toast } from 'sonner';
+
+export interface CategoryItem {
+  id: string;
+  name: string;
+  slug: string;
+  color?: string | null;
+  description?: string | null;
+}
 
 interface CreateEventFormProps {
   fests: Array<{
@@ -27,10 +40,25 @@ interface CreateEventFormProps {
     title: string;
     status: string;
   }>;
+  initialCategories?: CategoryItem[];
 }
 
-export function CreateEventForm({ fests }: CreateEventFormProps) {
+export function CreateEventForm({ fests, initialCategories = [] }: CreateEventFormProps) {
   const router = useRouter();
+
+  // Mode: Competitive Track vs General Event
+  const [isCompetitive, setIsCompetitive] = useState(true);
+
+  // Dynamic Categories
+  const [categories, setCategories] = useState<CategoryItem[]>(initialCategories);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>(
+    initialCategories[0]?.id || ''
+  );
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [newCatName, setNewCatName] = useState('');
+  const [newCatColor, setNewCatColor] = useState('violet');
+  const [newCatDesc, setNewCatDesc] = useState('');
+  const [creatingCat, setCreatingCat] = useState(false);
 
   // Basic Information
   const [festId, setFestId] = useState(fests[0]?.id || '');
@@ -190,12 +218,43 @@ export function CreateEventForm({ fests }: CreateEventFormProps) {
 
   const totalRubricScore = criteria.reduce((sum, c) => sum + (Number(c.maxScore) || 0), 0);
 
+  const handleQuickCreateCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCatName.trim()) {
+      toast.error('Please enter a category name.');
+      return;
+    }
+    setCreatingCat(true);
+    try {
+      const res = await createCategory({
+        name: newCatName.trim(),
+        color: newCatColor,
+        description: newCatDesc.trim() || undefined,
+      });
+      if (res.success && res.category) {
+        toast.success(res.message);
+        setCategories((prev) => [...prev, res.category!]);
+        setSelectedCategoryId(res.category.id);
+        setShowCategoryModal(false);
+        setNewCatName('');
+        setNewCatDesc('');
+      } else {
+        toast.error(res.message);
+      }
+    } catch (err: unknown) {
+      const error = err as Error;
+      toast.error(error.message || 'Failed to create category.');
+    } finally {
+      setCreatingCat(false);
+    }
+  };
+
   // Form Submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!title.trim()) {
-      toast.error('Please enter a competition title.');
+      toast.error(isCompetitive ? 'Please enter a competition title.' : 'Please enter an event title.');
       return;
     }
 
@@ -212,11 +271,15 @@ export function CreateEventForm({ fests }: CreateEventFormProps) {
     setSubmitting(true);
 
     try {
+      const selectedCatObj = categories.find((c) => c.id === selectedCategoryId);
       const res = await createEvent({
         festId,
         title: title.trim(),
         slug: slug.trim(),
         category,
+        categoryId: selectedCategoryId || undefined,
+        customCategory: selectedCatObj?.name || undefined,
+        isCompetitive,
         description: description.trim(),
         venue: venue.trim(),
         eventDate,
@@ -226,8 +289,8 @@ export function CreateEventForm({ fests }: CreateEventFormProps) {
         isTeamEvent,
         minTeamSize: isTeamEvent ? Number(minTeamSize) : 1,
         maxTeamSize: isTeamEvent ? Number(maxTeamSize) : 1,
-        rulebookUrl: rulebookUrl || undefined,
-        judgingCriteria: criteria,
+        rulebookUrl: isCompetitive ? (rulebookUrl || undefined) : undefined,
+        judgingCriteria: isCompetitive ? criteria : undefined,
       });
 
       if (!res.success) {
@@ -240,7 +303,7 @@ export function CreateEventForm({ fests }: CreateEventFormProps) {
       router.push(`/events/${res.eventSlug}`);
     } catch (err: unknown) {
       const error = err as Error;
-      toast.error(error.message || 'Failed to publish competition.');
+      toast.error(error.message || `Failed to publish ${isCompetitive ? 'competition' : 'event'}.`);
       setSubmitting(false);
     }
   };
@@ -261,13 +324,17 @@ export function CreateEventForm({ fests }: CreateEventFormProps) {
             <span className="text-[10px] font-mono uppercase tracking-wider font-bold px-2 py-0.5 rounded bg-violet-100 dark:bg-violet-950/80 text-violet-700 dark:text-violet-300 border border-violet-200 dark:border-violet-800">
               Organizer Studio
             </span>
-            <span className="text-xs text-zinc-500 font-mono">Create Competition / Event</span>
+            <span className="text-xs text-zinc-500 font-mono">
+              {isCompetitive ? 'Create Competition Track' : 'Create General Event'}
+            </span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100 mt-1">
-            New Competition Track
+            {isCompetitive ? 'New Competition Track' : 'New General Event'}
           </h1>
           <p className="text-xs sm:text-sm text-zinc-600 dark:text-zinc-400 mt-1">
-            Configure competition rules, team constraints, official PDF rulebook, and dynamic judging criteria.
+            {isCompetitive
+              ? 'Configure competition rules, team constraints, official PDF rulebook, and dynamic judging criteria.'
+              : 'Set up workshops, keynotes, bootcamps, and ceremonies with ticketing and capacity controls.'}
           </p>
         </div>
 
@@ -281,16 +348,57 @@ export function CreateEventForm({ fests }: CreateEventFormProps) {
           <button
             type="submit"
             disabled={submitting}
-            className="px-5 py-2 rounded-md text-xs font-semibold bg-violet-600 hover:bg-violet-700 text-white transition-colors shadow-sm disabled:opacity-50 flex items-center gap-2"
+            className="px-5 py-2 rounded-md text-xs font-semibold bg-violet-600 hover:bg-violet-700 text-white transition-colors shadow-sm disabled:opacity-50 flex items-center gap-2 cursor-pointer"
           >
             {submitting ? (
               <>
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                Publishing Track...
+                Publishing...
               </>
-            ) : (
+            ) : isCompetitive ? (
               'Publish Competition'
+            ) : (
+              'Publish Event'
             )}
+          </button>
+        </div>
+      </div>
+
+      {/* Operational Event Archetype Selector */}
+      <div className="p-4 rounded-xl bg-white dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs">
+        <div>
+          <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+            <Sliders className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+            Operational Event Archetype
+          </span>
+          <p className="text-xs text-zinc-500 mt-0.5">
+            Select whether this event is an evaluated competitive contest or a general carnival event.
+          </p>
+        </div>
+        <div className="inline-flex rounded-lg p-1 bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
+          <button
+            type="button"
+            onClick={() => setIsCompetitive(true)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer ${
+              isCompetitive
+                ? 'bg-violet-600 text-white shadow-xs'
+                : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100'
+            }`}
+          >
+            <Trophy className="h-3.5 w-3.5" />
+            Competitive Contest Track
+          </button>
+          <button
+            type="button"
+            onClick={() => setIsCompetitive(false)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer ${
+              !isCompetitive
+                ? 'bg-violet-600 text-white shadow-xs'
+                : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100'
+            }`}
+          >
+            <Calendar className="h-3.5 w-3.5" />
+            General Event / Workshop
           </button>
         </div>
       </div>
@@ -299,9 +407,15 @@ export function CreateEventForm({ fests }: CreateEventFormProps) {
       <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/80 flex items-start gap-3">
         <ShieldAlert className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
         <div className="text-xs space-y-1">
-          <p className="font-bold text-amber-900 dark:text-amber-200">Fair-Play Architecture & Role Separation</p>
+          <p className="font-bold text-amber-900 dark:text-amber-200">
+            {isCompetitive
+              ? 'Fair-Play Architecture & Role Separation'
+              : 'General Event & Capacity Administration'}
+          </p>
           <p className="text-amber-800 dark:text-amber-300/90 leading-relaxed">
-            As an Organizer, you configure this competition, its PDF rulebook, and its evaluation criteria. However, <strong>organizers and administrators cannot evaluate or score submitted student projects</strong>. Scoring is strictly restricted to certified Judge accounts to eliminate bias and ensure fair carnival play.
+            {isCompetitive
+              ? 'As an Organizer, you configure this competition, its PDF rulebook, and its evaluation criteria. However, organizers and administrators cannot evaluate or score submitted student projects. Scoring is strictly restricted to assigned certified Judge accounts.'
+              : 'General events handle seating capacity, registrations, and gate check-in without requiring competitive rubrics or judge scoring isolation.'}
           </p>
         </div>
       </div>
@@ -312,7 +426,7 @@ export function CreateEventForm({ fests }: CreateEventFormProps) {
           {/* Section 1: Basic Info */}
           <div className="p-5 rounded-xl bg-white dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-800 space-y-4 shadow-xs">
             <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 font-mono">
-              1. Competition Track Metadata
+              1. {isCompetitive ? 'Competition Track Metadata' : 'Event Metadata'}
             </h2>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -334,33 +448,65 @@ export function CreateEventForm({ fests }: CreateEventFormProps) {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">
-                  Category *
-                </label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                    Category *
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setShowCategoryModal(true)}
+                    className="text-[10px] text-violet-600 dark:text-violet-400 hover:underline flex items-center gap-1 font-medium cursor-pointer"
+                  >
+                    <Plus className="h-3 w-3" />
+                    New Category
+                  </button>
+                </div>
                 <select
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value as EventCategory)}
+                  value={selectedCategoryId || category}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setSelectedCategoryId(val);
+                    const found = categories.find((c) => c.id === val);
+                    if (found) {
+                      const upper = found.name.toUpperCase();
+                      if (upper in EventCategory) {
+                        setCategory(upper as EventCategory);
+                      }
+                    } else if (val in EventCategory) {
+                      setCategory(val as EventCategory);
+                    }
+                  }}
                   className="w-full px-3 py-2 rounded-md bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs text-zinc-900 dark:text-zinc-100 focus:border-violet-600 outline-none"
                 >
-                  <option value={EventCategory.CONTEST}>CONTEST (Competitive Programming, Olympiad)</option>
-                  <option value={EventCategory.HACKATHON}>HACKATHON (AI, Web, App Dev)</option>
-                  <option value={EventCategory.ROBOTICS}>ROBOTICS (LFR, Robo Soccer, Combat)</option>
-                  <option value={EventCategory.GAMING}>GAMING (Esports, Valorant, FIFA)</option>
-                  <option value={EventCategory.WORKSHOP}>WORKSHOP (Technical Bootcamp)</option>
-                  <option value={EventCategory.SEMINAR}>SEMINAR (Keynote, Panel)</option>
+                  {categories.length > 0 ? (
+                    categories.map((cat) => (
+                      <option key={cat.id} value={cat.id}>
+                        {cat.name}
+                      </option>
+                    ))
+                  ) : (
+                    <>
+                      <option value={EventCategory.CONTEST}>CONTEST (Competitive Programming, Olympiad)</option>
+                      <option value={EventCategory.HACKATHON}>HACKATHON (AI, Web, App Dev)</option>
+                      <option value={EventCategory.ROBOTICS}>ROBOTICS (LFR, Robo Soccer, Combat)</option>
+                      <option value={EventCategory.GAMING}>GAMING (Esports, Valorant, FIFA)</option>
+                      <option value={EventCategory.WORKSHOP}>WORKSHOP (Technical Bootcamp)</option>
+                      <option value={EventCategory.SEMINAR}>SEMINAR (Keynote, Panel)</option>
+                    </>
+                  )}
                 </select>
               </div>
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">
-                Competition Track Title *
+                {isCompetitive ? 'Competition Track Title *' : 'Event Title *'}
               </label>
               <input
                 type="text"
                 value={title}
                 onChange={(e) => handleTitleChange(e.target.value)}
-                placeholder="e.g., Autonomous Line Following Robotics (LFR)"
+                placeholder={isCompetitive ? 'e.g., Autonomous Line Following Robotics (LFR)' : 'e.g., Applied Generative AI Workshop & Hands-on Lab'}
                 required
                 className="w-full px-3 py-2 rounded-md bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs text-zinc-900 dark:text-zinc-100 focus:border-violet-600 outline-none"
               />
@@ -422,198 +568,218 @@ export function CreateEventForm({ fests }: CreateEventFormProps) {
             </div>
           </div>
 
-          {/* Section 2: Strict PDF-Only Rulebook Upload */}
-          <div className="p-5 rounded-xl bg-white dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-800 space-y-4 shadow-xs">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 font-mono">
-                  2. Official Rulebook Document
-                </h2>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-                  Upload the official competition regulations document. <strong className="text-violet-600 dark:text-violet-400 font-mono">Strictly PDF format only.</strong>
-                </p>
-              </div>
-              <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-violet-100 dark:bg-violet-950 text-violet-700 dark:text-violet-300 border border-violet-200 dark:border-violet-800">
-                PDF Only
-              </span>
-            </div>
-
-            {/* Dropzone */}
-            {!rulebookUrl ? (
-              <div>
-                <label className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-zinc-200 dark:border-zinc-800 hover:border-violet-500/80 rounded-xl cursor-pointer bg-zinc-50/50 dark:bg-zinc-950/40 transition-colors group">
-                  <div className="w-12 h-12 rounded-full bg-violet-50 dark:bg-violet-950/60 text-violet-600 dark:text-violet-400 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
-                    {uploadingPdf ? (
-                      <Loader2 className="w-6 h-6 animate-spin" />
-                    ) : (
-                      <UploadCloud className="w-6 h-6" />
-                    )}
-                  </div>
-                  <p className="text-xs font-semibold text-zinc-800 dark:text-zinc-200">
-                    {uploadingPdf ? 'Verifying and uploading PDF...' : 'Click to select or drag and drop PDF rulebook'}
-                  </p>
-                  <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1">
-                    Accepts only <span className="font-mono text-violet-600 dark:text-violet-400">.pdf</span> (MIME application/pdf). Max 25 MB.
-                  </p>
-                  <input
-                    type="file"
-                    accept=".pdf,application/pdf"
-                    onChange={handlePdfSelect}
-                    disabled={uploadingPdf}
-                    className="hidden"
-                  />
-                </label>
-                {pdfError && (
-                  <p className="text-xs text-rose-600 dark:text-rose-400 mt-2 flex items-center gap-1.5">
-                    <AlertCircle className="h-3.5 w-3.5" />
-                    {pdfError}
-                  </p>
-                )}
-              </div>
-            ) : (
-              <div className="flex items-center justify-between p-4 rounded-xl border border-emerald-200 dark:border-emerald-800/80 bg-emerald-50/40 dark:bg-emerald-950/20 text-xs">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-emerald-100 dark:bg-emerald-900/60 text-emerald-600 dark:text-emerald-300 flex items-center justify-center">
-                    <FileText className="h-5 w-5" />
-                  </div>
+          {/* Section 2 & 3: Competitive-Only Settings */}
+          {isCompetitive ? (
+            <>
+              {/* Section 2: Strict PDF-Only Rulebook Upload */}
+              <div className="p-5 rounded-xl bg-white dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-800 space-y-4 shadow-xs">
+                <div className="flex items-center justify-between">
                   <div>
-                    <div className="flex items-center gap-2">
-                      <p className="font-bold text-zinc-900 dark:text-zinc-100">
-                        {rulebookFile?.name || 'Verified Rulebook.pdf'}
-                      </p>
-                      <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                    </div>
-                    <p className="text-[11px] text-zinc-500 font-mono mt-0.5">
-                      application/pdf • Verified PDF signature • Accessible at {rulebookUrl}
+                    <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 font-mono">
+                      2. Official Rulebook Document
+                    </h2>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                      Upload the official competition regulations document. <strong className="text-violet-600 dark:text-violet-400 font-mono">Strictly PDF format only.</strong>
                     </p>
                   </div>
+                  <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-violet-100 dark:bg-violet-950 text-violet-700 dark:text-violet-300 border border-violet-200 dark:border-violet-800">
+                    PDF Only
+                  </span>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <a
-                    href={rulebookUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="px-3 py-1.5 rounded-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 font-medium"
-                  >
-                    Preview
-                  </a>
-                  <button
-                    type="button"
-                    onClick={removePdf}
-                    className="p-1.5 text-zinc-400 hover:text-rose-500 transition-colors"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Section 3: Dynamic Judging Criteria & Rubric Builder */}
-          <div className="p-5 rounded-xl bg-white dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-800 space-y-4 shadow-xs">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-200 dark:border-zinc-800 pb-3">
-              <div>
-                <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 font-mono flex items-center gap-2">
-                  <Sliders className="h-3.5 w-3.5 text-violet-600 dark:text-violet-400" />
-                  3. Dynamic Judging Criteria & Rubric
-                </h2>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-                  Define custom scoring dimensions for official judges. Sliders and scorecards will automatically adapt.
-                </p>
-              </div>
-
-              <div className="flex items-center gap-1.5">
-                <span className="text-[11px] text-zinc-500">Presets:</span>
-                <button
-                  type="button"
-                  onClick={() => applyPreset('120pt')}
-                  className="px-2 py-1 text-[11px] rounded bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 transition-colors"
-                >
-                  120-pt
-                </button>
-                <button
-                  type="button"
-                  onClick={() => applyPreset('100pt')}
-                  className="px-2 py-1 text-[11px] rounded bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 transition-colors"
-                >
-                  100-pt
-                </button>
-                <button
-                  type="button"
-                  onClick={() => applyPreset('robotics')}
-                  className="px-2 py-1 text-[11px] rounded bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 transition-colors"
-                >
-                  Robotics
-                </button>
-              </div>
-            </div>
-
-            {/* Criteria List */}
-            <div className="space-y-3">
-              {criteria.map((c, idx) => (
-                <div
-                  key={c.id}
-                  className="p-3.5 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/60 space-y-2 text-xs"
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="text-zinc-400 font-mono text-xs w-5">{idx + 1}.</span>
-                    <input
-                      type="text"
-                      value={c.name}
-                      onChange={(e) => updateCriterion(c.id, { name: e.target.value })}
-                      placeholder="Criterion Dimension Name"
-                      className="flex-1 px-2.5 py-1.5 rounded bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 text-xs focus:border-violet-600 outline-none font-medium"
-                    />
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <span className="text-zinc-500 font-mono text-[11px]">Max:</span>
+                {/* Dropzone */}
+                {!rulebookUrl ? (
+                  <div>
+                    <label className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-zinc-200 dark:border-zinc-800 hover:border-violet-500/80 rounded-xl cursor-pointer bg-zinc-50/50 dark:bg-zinc-950/40 transition-colors group">
+                      <div className="w-12 h-12 rounded-full bg-violet-50 dark:bg-violet-950/60 text-violet-600 dark:text-violet-400 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
+                        {uploadingPdf ? (
+                          <Loader2 className="w-6 h-6 animate-spin" />
+                        ) : (
+                          <UploadCloud className="w-6 h-6" />
+                        )}
+                      </div>
+                      <p className="text-xs font-semibold text-zinc-800 dark:text-zinc-200">
+                        {uploadingPdf ? 'Verifying and uploading PDF...' : 'Click to select or drag and drop PDF rulebook'}
+                      </p>
+                      <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1">
+                        Accepts only <span className="font-mono text-violet-600 dark:text-violet-400">.pdf</span> (MIME application/pdf). Max 25 MB.
+                      </p>
                       <input
-                        type="number"
-                        min="1"
-                        max="100"
-                        value={c.maxScore}
-                        onChange={(e) => updateCriterion(c.id, { maxScore: Number(e.target.value) })}
-                        className="w-16 px-2 py-1.5 rounded bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-center font-mono text-xs text-zinc-900 dark:text-zinc-100 focus:border-violet-600 outline-none"
+                        type="file"
+                        accept=".pdf,application/pdf"
+                        onChange={handlePdfSelect}
+                        disabled={uploadingPdf}
+                        className="hidden"
                       />
-                      <span className="text-zinc-500 text-[11px]">pts</span>
+                    </label>
+                    {pdfError && (
+                      <p className="text-xs text-rose-600 dark:text-rose-400 mt-2 flex items-center gap-1.5">
+                        <AlertCircle className="h-3.5 w-3.5" />
+                        {pdfError}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between p-4 rounded-xl border border-emerald-200 dark:border-emerald-800/80 bg-emerald-50/40 dark:bg-emerald-950/20 text-xs">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-emerald-100 dark:bg-emerald-900/60 text-emerald-600 dark:text-emerald-300 flex items-center justify-center">
+                        <FileText className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className="font-bold text-zinc-900 dark:text-zinc-100">
+                            {rulebookFile?.name || 'Verified Rulebook.pdf'}
+                          </p>
+                          <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                        </div>
+                        <p className="text-[11px] text-zinc-500 font-mono mt-0.5">
+                          application/pdf • Verified PDF signature • Accessible at {rulebookUrl}
+                        </p>
+                      </div>
                     </div>
+
+                    <div className="flex items-center gap-2">
+                      <a
+                        href={rulebookUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-3 py-1.5 rounded-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 font-medium"
+                      >
+                        Preview
+                      </a>
+                      <button
+                        type="button"
+                        onClick={removePdf}
+                        className="p-1.5 text-zinc-400 hover:text-rose-500 transition-colors cursor-pointer"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Section 3: Dynamic Judging Criteria & Rubric Builder */}
+              <div className="p-5 rounded-xl bg-white dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-800 space-y-4 shadow-xs">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-200 dark:border-zinc-800 pb-3">
+                  <div>
+                    <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 font-mono flex items-center gap-2">
+                      <Sliders className="h-3.5 w-3.5 text-violet-600 dark:text-violet-400" />
+                      3. Dynamic Judging Criteria & Rubric
+                    </h2>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                      Define custom scoring dimensions for official judges. Sliders and scorecards will automatically adapt.
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[11px] text-zinc-500">Presets:</span>
                     <button
                       type="button"
-                      onClick={() => removeCriterion(c.id)}
-                      className="p-1.5 text-zinc-400 hover:text-rose-500 transition-colors ml-1"
+                      onClick={() => applyPreset('120pt')}
+                      className="px-2 py-1 text-[11px] rounded bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 transition-colors cursor-pointer"
                     >
-                      <Trash2 className="h-3.5 w-3.5" />
+                      120-pt
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => applyPreset('100pt')}
+                      className="px-2 py-1 text-[11px] rounded bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 transition-colors cursor-pointer"
+                    >
+                      100-pt
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => applyPreset('robotics')}
+                      className="px-2 py-1 text-[11px] rounded bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 transition-colors cursor-pointer"
+                    >
+                      Robotics
                     </button>
                   </div>
-                  <input
-                    type="text"
-                    value={c.description || ''}
-                    onChange={(e) => updateCriterion(c.id, { description: e.target.value })}
-                    placeholder="Brief evaluation guideline for judges (optional)..."
-                    className="w-full px-2.5 py-1 rounded bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 text-[11px] focus:border-violet-600 outline-none"
-                  />
                 </div>
-              ))}
-            </div>
 
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
-              <button
-                type="button"
-                onClick={addCriterion}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 transition-colors border border-zinc-200 dark:border-zinc-700 self-start"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                Add Evaluation Dimension
-              </button>
+                {/* Criteria List */}
+                <div className="space-y-3">
+                  {criteria.map((c, idx) => (
+                    <div
+                      key={c.id}
+                      className="p-3.5 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/60 space-y-2 text-xs"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="text-zinc-400 font-mono text-xs w-5">{idx + 1}.</span>
+                        <input
+                          type="text"
+                          value={c.name}
+                          onChange={(e) => updateCriterion(c.id, { name: e.target.value })}
+                          placeholder="Criterion Dimension Name"
+                          className="flex-1 px-2.5 py-1.5 rounded bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 text-xs focus:border-violet-600 outline-none font-medium"
+                        />
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className="text-zinc-500 font-mono text-[11px]">Max:</span>
+                          <input
+                            type="number"
+                            min="1"
+                            max="100"
+                            value={c.maxScore}
+                            onChange={(e) => updateCriterion(c.id, { maxScore: Number(e.target.value) })}
+                            className="w-16 px-2 py-1.5 rounded bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-center font-mono text-xs text-zinc-900 dark:text-zinc-100 focus:border-violet-600 outline-none"
+                          />
+                          <span className="text-zinc-500 text-[11px]">pts</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeCriterion(c.id)}
+                          className="p-1.5 text-zinc-400 hover:text-rose-500 transition-colors ml-1 cursor-pointer"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                      <input
+                        type="text"
+                        value={c.description || ''}
+                        onChange={(e) => updateCriterion(c.id, { description: e.target.value })}
+                        placeholder="Brief evaluation guideline for judges (optional)..."
+                        className="w-full px-2.5 py-1 rounded bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 text-[11px] focus:border-violet-600 outline-none"
+                      />
+                    </div>
+                  ))}
+                </div>
 
-              <div className="flex items-center gap-2 text-xs font-mono">
-                <span className="text-zinc-500">Cumulative Rubric Max:</span>
-                <span className="font-bold text-violet-600 dark:text-violet-400 text-sm">
-                  {totalRubricScore} Points
-                </span>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={addCriterion}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 transition-colors border border-zinc-200 dark:border-zinc-700 self-start cursor-pointer"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Add Evaluation Dimension
+                  </button>
+
+                  <div className="flex items-center gap-2 text-xs font-mono">
+                    <span className="text-zinc-500">Cumulative Rubric Max:</span>
+                    <span className="font-bold text-violet-600 dark:text-violet-400 text-sm">
+                      {totalRubricScore} Points
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="p-5 rounded-xl bg-white dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-800 space-y-3 text-xs shadow-xs">
+              <div className="flex items-center gap-2 text-violet-600 dark:text-violet-400 font-semibold">
+                <Calendar className="h-4 w-4" />
+                <span>General Event Track Operational Guidelines</span>
+              </div>
+              <p className="text-zinc-600 dark:text-zinc-400 leading-relaxed">
+                This general event (workshop, seminar, or ceremony) does not require competitive project evaluation or dynamic judging criteria. Attendees will register, receive verifiable digital passes, and check in through the QR scanner at the venue entrance.
+              </p>
+              <div className="p-3 rounded-lg bg-zinc-50 dark:bg-zinc-950/60 border border-zinc-200 dark:border-zinc-800 text-[11px] text-zinc-500 font-mono space-y-1">
+                <p>• Registration & Ticketing: Automated QR Pass issuance</p>
+                <p>• Venue Gate: Compatible with ClubSphere Webcam QR Scanner</p>
+                <p>• Waitlist Management: Automatic promotion on cancellations</p>
               </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Right 1 Col: Operations & Capacity */}
@@ -744,35 +910,143 @@ export function CreateEventForm({ fests }: CreateEventFormProps) {
             <ul className="text-[11px] space-y-1.5 text-zinc-600 dark:text-zinc-300">
               <li className="flex items-center gap-1.5">
                 <CheckCircle2 className={`h-3.5 w-3.5 ${title ? 'text-emerald-500' : 'text-zinc-400'}`} />
-                <span>Track title & slug configured</span>
+                <span>{isCompetitive ? 'Track title & slug configured' : 'Event title & slug configured'}</span>
               </li>
-              <li className="flex items-center gap-1.5">
-                <CheckCircle2 className={`h-3.5 w-3.5 ${rulebookUrl ? 'text-emerald-500' : 'text-zinc-400'}`} />
-                <span>{rulebookUrl ? 'PDF Rulebook attached' : 'PDF Rulebook optional'}</span>
-              </li>
-              <li className="flex items-center gap-1.5">
-                <CheckCircle2 className={`h-3.5 w-3.5 ${criteria.length > 0 ? 'text-emerald-500' : 'text-zinc-400'}`} />
-                <span>{criteria.length} Judging dimensions ({totalRubricScore} pts)</span>
-              </li>
+              {isCompetitive ? (
+                <>
+                  <li className="flex items-center gap-1.5">
+                    <CheckCircle2 className={`h-3.5 w-3.5 ${rulebookUrl ? 'text-emerald-500' : 'text-zinc-400'}`} />
+                    <span>{rulebookUrl ? 'PDF Rulebook attached' : 'PDF Rulebook optional'}</span>
+                  </li>
+                  <li className="flex items-center gap-1.5">
+                    <CheckCircle2 className={`h-3.5 w-3.5 ${criteria.length > 0 ? 'text-emerald-500' : 'text-zinc-400'}`} />
+                    <span>{criteria.length} Judging dimensions ({totalRubricScore} pts)</span>
+                  </li>
+                </>
+              ) : (
+                <li className="flex items-center gap-1.5">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                  <span>General Track: Direct registration & ticketing</span>
+                </li>
+              )}
             </ul>
 
             <button
               type="submit"
               disabled={submitting}
-              className="w-full py-2.5 rounded-md text-xs font-semibold bg-violet-600 hover:bg-violet-700 text-white transition-colors shadow-sm disabled:opacity-50 flex items-center justify-center gap-2 mt-2"
+              className="w-full py-2.5 rounded-md text-xs font-semibold bg-violet-600 hover:bg-violet-700 text-white transition-colors shadow-sm disabled:opacity-50 flex items-center justify-center gap-2 mt-2 cursor-pointer"
             >
               {submitting ? (
                 <>
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  Publishing Track...
+                  Publishing...
                 </>
-              ) : (
+              ) : isCompetitive ? (
                 'Publish Competition Track'
+              ) : (
+                'Publish General Event'
               )}
             </button>
           </div>
         </div>
       </div>
+
+      {/* Modal for Quick Category Creation */}
+      {showCategoryModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/70 backdrop-blur-xs animate-in fade-in duration-100">
+          <div className="w-full max-w-md rounded-xl bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 shadow-2xl p-5 space-y-4">
+            <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-md bg-violet-100 dark:bg-violet-950/80 text-violet-600 dark:text-violet-400">
+                  <Tag className="h-4 w-4" />
+                </div>
+                <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Create New Category</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowCategoryModal(false)}
+                className="p-1 rounded-md text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+                  Category Name *
+                </label>
+                <input
+                  type="text"
+                  value={newCatName}
+                  onChange={(e) => setNewCatName(e.target.value)}
+                  placeholder="e.g., Cyber Security & CTF, Mobile App Dev"
+                  className="w-full px-3 py-2 rounded-md bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs text-zinc-900 dark:text-zinc-100 focus:border-violet-600 outline-none"
+                  autoFocus
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+                  Accent Color
+                </label>
+                <div className="flex items-center gap-2">
+                  {[
+                    { name: 'violet', label: 'Violet', bg: 'bg-violet-500' },
+                    { name: 'emerald', label: 'Emerald', bg: 'bg-emerald-500' },
+                    { name: 'blue', label: 'Blue', bg: 'bg-blue-500' },
+                    { name: 'amber', label: 'Amber', bg: 'bg-amber-500' },
+                    { name: 'rose', label: 'Rose', bg: 'bg-rose-500' },
+                    { name: 'cyan', label: 'Cyan', bg: 'bg-cyan-500' },
+                  ].map((color) => (
+                    <button
+                      key={color.name}
+                      type="button"
+                      onClick={() => setNewCatColor(color.name)}
+                      className={`h-7 w-7 rounded-full flex items-center justify-center border-2 transition-all cursor-pointer ${color.bg} ${
+                        newCatColor === color.name ? 'border-zinc-900 dark:border-white scale-110' : 'border-transparent'
+                      }`}
+                      title={color.label}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+                  Description (Optional)
+                </label>
+                <textarea
+                  rows={2}
+                  value={newCatDesc}
+                  onChange={(e) => setNewCatDesc(e.target.value)}
+                  placeholder="Short description for badges and event filters..."
+                  className="w-full px-3 py-2 rounded-md bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs text-zinc-900 dark:text-zinc-100 focus:border-violet-600 outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-zinc-200 dark:border-zinc-800">
+              <button
+                type="button"
+                onClick={() => setShowCategoryModal(false)}
+                className="px-3 py-1.5 rounded-md text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleQuickCreateCategory}
+                disabled={creatingCat || !newCatName.trim()}
+                className="px-4 py-1.5 rounded-md text-xs font-semibold bg-violet-600 hover:bg-violet-700 text-white transition-colors disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+              >
+                {creatingCat && <Loader2 className="h-3 w-3 animate-spin" />}
+                Save & Select Category
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </form>
   );
 }

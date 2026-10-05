@@ -12,7 +12,8 @@ import {
   Trophy, 
   HelpCircle,
   FileText,
-  Sliders
+  Sliders,
+  Award
 } from 'lucide-react';
 import { formatDateTime, formatCurrency } from '@/lib/utils';
 
@@ -149,6 +150,16 @@ export default async function EventDetailPage({ params }: EventPageProps) {
                 <HelpCircle className="h-4 w-4" />
               </Link>
             </div>
+
+            {(user?.role === 'ORGANIZER' || user?.role === 'ADMIN') && event.isCompetitive && (
+              <Link
+                href={`/admin/competitions/${event.slug}/judges`}
+                className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-md text-xs font-semibold bg-violet-50 dark:bg-violet-950/80 text-violet-700 dark:text-violet-300 border border-violet-200 dark:border-violet-800 hover:bg-violet-100 dark:hover:bg-violet-900 transition-colors shadow-xs"
+              >
+                <Award className="h-3.5 w-3.5 text-violet-600 dark:text-violet-400" />
+                <span>Manage Judges Roster</span>
+              </Link>
+            )}
 
             {event.rulebookUrl && (
               <a

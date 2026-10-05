@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, X, Calendar, Trophy, ShieldCheck, Ticket, Users, HelpCircle, ArrowRight } from 'lucide-react';
+import { Search, X, Calendar, Trophy, ShieldCheck, Ticket, Users, HelpCircle, ArrowRight, Tag, Award } from 'lucide-react';
 
 interface CommandMenuProps {
   isOpen: boolean;
@@ -51,6 +51,8 @@ export function CommandMenu({ isOpen, onClose, currentUser }: CommandMenuProps) 
     { title: 'Verify Digital Certificate', category: 'Verification', href: '/verify-certificate', icon: ShieldCheck },
     { title: 'Organizer Admin Dashboard', category: 'Management', href: '/admin', icon: Users, roles: ['ORGANIZER', 'ADMIN'] },
     { title: 'Create New Competition Track', category: 'Management', href: '/admin/events/new', icon: Trophy, roles: ['ORGANIZER', 'ADMIN'] },
+    { title: 'Manage Event Categories', category: 'Management', href: '/admin/categories', icon: Tag, roles: ['ORGANIZER', 'ADMIN'] },
+    { title: 'Judge Rosters & Track Assignments', category: 'Management', href: '/admin/competitions/ai-web-development-contest/judges', icon: Award, roles: ['ORGANIZER', 'ADMIN'] },
     { title: 'Webcam QR Check-in Scanner', category: 'Management', href: '/admin/scanner', icon: ShieldCheck, roles: ['ORGANIZER', 'ADMIN'] },
     { title: 'Judge Evaluation Scoring Portal', category: 'Judging', href: '/judge', icon: Trophy, roles: ['JUDGE'] },
   ];

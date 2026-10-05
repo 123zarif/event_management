@@ -94,6 +94,32 @@ export async function submitJudgeScore(
       };
     }
 
+    // COMPETITION ROSTER ENFORCEMENT: Judge must be specifically assigned to this competition track
+    const submission = await prisma.submission.findUnique({
+      where: { id: submissionId },
+      include: { event: true },
+    });
+
+    if (!submission) {
+      return { success: false, message: 'Submission not found.' };
+    }
+
+    const isAssigned = await prisma.eventJudge.findUnique({
+      where: {
+        eventId_judgeId: {
+          eventId: submission.eventId,
+          judgeId: user.id,
+        },
+      },
+    });
+
+    if (!isAssigned) {
+      return {
+        success: false,
+        message: `Access Denied: You are not assigned to evaluate "${submission.event.title}". Only official judges specifically assigned to this competition can evaluate and score submissions.`,
+      };
+    }
+
     let criteriaBreakdown: Record<string, number> = {};
     let totalScore = 0;
 

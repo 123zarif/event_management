@@ -45,7 +45,7 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
     slug: event.slug,
     title: event.title,
     description: event.description,
-    category: event.category,
+    category: event.customCategory || event.category,
     venue: event.venue,
     eventDate: event.eventDate.toISOString(),
     registrationDeadline: event.registrationDeadline.toISOString(),
@@ -55,6 +55,7 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
     minTeamSize: event.minTeamSize,
     maxTeamSize: event.maxTeamSize,
     rulebookUrl: event.rulebookUrl,
+    isCompetitive: event.isCompetitive,
     fest: {
       id: event.fest.id,
       slug: event.fest.slug,

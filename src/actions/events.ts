@@ -17,6 +17,9 @@ export interface CreateEventInput {
   title: string;
   slug: string;
   category: EventCategory;
+  categoryId?: string;
+  customCategory?: string;
+  isCompetitive?: boolean;
   description: string;
   rules?: string;
   rulebookUrl?: string;
@@ -60,6 +63,8 @@ export async function createEvent(data: CreateEventInput) {
       return { success: false, message: `An event with slug "${cleanSlug}" already exists. Please choose a different slug.` };
     }
 
+    const isCompetitive = data.isCompetitive !== undefined ? data.isCompetitive : true;
+
     // Rulebook check: If provided, must be a .pdf
     if (data.rulebookUrl && !data.rulebookUrl.toLowerCase().endsWith('.pdf')) {
       return { success: false, message: 'Invalid rulebook format: Strictly PDF documents (.pdf) only.' };
@@ -77,10 +82,15 @@ export async function createEvent(data: CreateEventInput) {
         title: data.title.trim(),
         slug: cleanSlug,
         category: data.category || EventCategory.CONTEST,
+        categoryId: data.categoryId || null,
+        customCategory: data.customCategory?.trim() || null,
+        isCompetitive,
         description: data.description.trim(),
         rules: data.rules?.trim() || null,
-        rulebookUrl: data.rulebookUrl || null,
-        judgingCriteria: data.judgingCriteria && data.judgingCriteria.length > 0 ? (data.judgingCriteria as unknown as Prisma.InputJsonValue) : Prisma.JsonNull,
+        rulebookUrl: isCompetitive ? (data.rulebookUrl || null) : null,
+        judgingCriteria: isCompetitive && data.judgingCriteria && data.judgingCriteria.length > 0 
+          ? (data.judgingCriteria as unknown as Prisma.InputJsonValue) 
+          : Prisma.JsonNull,
         venue: data.venue.trim(),
         eventDate: new Date(data.eventDate),
         registrationDeadline: new Date(data.registrationDeadline),
@@ -98,7 +108,7 @@ export async function createEvent(data: CreateEventInput) {
     // Create Audit Log
     await prisma.auditLog.create({
       data: {
-        action: 'EVENT_CREATED',
+        action: isCompetitive ? 'COMPETITION_CREATED' : 'EVENT_CREATED',
         entityType: 'Event',
         entityId: event.id,
         actorId: user.id,
@@ -106,6 +116,8 @@ export async function createEvent(data: CreateEventInput) {
           title: event.title,
           slug: event.slug,
           category: event.category,
+          isCompetitive: event.isCompetitive,
+          categoryId: event.categoryId,
           capacity: event.capacity,
           rulebookUrl: event.rulebookUrl,
           hasCriteria: !!data.judgingCriteria?.length,
@@ -120,7 +132,7 @@ export async function createEvent(data: CreateEventInput) {
 
     return {
       success: true,
-      message: `Competition "${event.title}" published successfully!`,
+      message: `${isCompetitive ? 'Competition' : 'Event'} "${event.title}" published successfully!`,
       eventSlug: event.slug,
     };
   } catch (error: unknown) {

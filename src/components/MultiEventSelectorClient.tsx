@@ -35,6 +35,7 @@ export interface SerializedEvent {
   minTeamSize: number;
   maxTeamSize: number;
   rulebookUrl?: string | null;
+  isCompetitive?: boolean;
   fest: {
     id: string;
     slug: string;
@@ -284,9 +285,16 @@ export function MultiEventSelectorClient({
                 <div>
                   {/* Top meta: Category + Checkbox/Badge */}
                   <div className="flex items-center justify-between gap-2 mb-2.5">
-                    <span className="text-[11px] font-mono uppercase tracking-wider text-violet-600 dark:text-violet-400 font-semibold">
-                      {event.category}
-                    </span>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-[11px] font-mono uppercase tracking-wider text-violet-600 dark:text-violet-400 font-semibold">
+                        {event.category}
+                      </span>
+                      {event.isCompetitive === false && (
+                        <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700">
+                          General
+                        </span>
+                      )}
+                    </div>
 
                     <div className="flex items-center gap-2">
                       {stateBadge}

@@ -18,7 +18,8 @@ import {
   LifeBuoy,
   X,
   Database,
-  Plus
+  Plus,
+  Tag
 } from 'lucide-react';
 import { switchPersonaAction } from '@/actions/auth';
 
@@ -101,6 +102,7 @@ export function Sidebar({ currentUser, collapsed, mobileOpen, onCloseMobile }: S
       items: [
         { label: 'Admin Command', href: '/admin', icon: Shield, badge: 'Staff' },
         { label: 'New Competition', href: '/admin/events/new', icon: Plus, badge: 'New' },
+        { label: 'Event Categories', href: '/admin/categories', icon: Tag },
         { label: 'Attendee Registry', href: '/admin/participants', icon: Users },
         { label: 'QR Gate Scanner', href: '/admin/scanner', icon: QrCode, badge: 'Live' },
         { label: 'Support Queue', href: '/admin/support', icon: LifeBuoy },

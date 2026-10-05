@@ -11,19 +11,31 @@ export default async function NewEventPage() {
     redirect('/?denied=admin');
   }
 
-  const fests = await prisma.fest.findMany({
-    orderBy: { startDate: 'asc' },
-    select: {
-      id: true,
-      slug: true,
-      title: true,
-      status: true,
-    },
-  });
+  const [fests, categories] = await Promise.all([
+    prisma.fest.findMany({
+      orderBy: { startDate: 'asc' },
+      select: {
+        id: true,
+        slug: true,
+        title: true,
+        status: true,
+      },
+    }),
+    prisma.category.findMany({
+      orderBy: { name: 'asc' },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        color: true,
+        description: true,
+      },
+    }),
+  ]);
 
   return (
     <div className="w-full max-w-5xl mx-auto space-y-6">
-      <CreateEventForm fests={fests} />
+      <CreateEventForm fests={fests} initialCategories={categories} />
     </div>
   );
 }

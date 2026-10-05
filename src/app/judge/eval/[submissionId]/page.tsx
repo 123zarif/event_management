@@ -45,6 +45,7 @@ export default function JudgeEvaluationPage() {
 
   // Dynamic criteria state
   const [dynamicScores, setDynamicScores] = useState<Record<string, number>>({});
+  const [isAssignedJudge, setIsAssignedJudge] = useState(true);
   
   // Default fallback criteria scores (0 to 30 each)
   const [festDirectoryUX, setFestDirectoryUX] = useState(25);
@@ -69,6 +70,9 @@ export default function JudgeEvaluationPage() {
         if (subRes.ok) {
           const data = await subRes.json();
           setSubmission(data);
+          if (typeof data.isAssigned === 'boolean') {
+            setIsAssignedJudge(data.isAssigned);
+          }
 
           const eventCriteria = data.event?.judgingCriteria as JudgingCriterion[] | undefined;
           if (eventCriteria && Array.isArray(eventCriteria) && eventCriteria.length > 0) {
@@ -97,6 +101,7 @@ export default function JudgeEvaluationPage() {
   }, [submissionId]);
 
   const isJudge = currentUser?.role === 'JUDGE';
+  const canScore = isJudge && isAssignedJudge;
   const customCriteria = submission?.event?.judgingCriteria as JudgingCriterion[] | undefined;
   const hasCustomCriteria = Array.isArray(customCriteria) && customCriteria.length > 0;
 
@@ -112,6 +117,11 @@ export default function JudgeEvaluationPage() {
     e.preventDefault();
     if (!isJudge) {
       toast.error('Fair play restriction: Only official Judges can evaluate and submit scores. Organizers cannot judge.');
+      return;
+    }
+
+    if (!isAssignedJudge) {
+      toast.error('Access Denied: You are not assigned to evaluate this competition track.');
       return;
     }
 
@@ -178,6 +188,19 @@ export default function JudgeEvaluationPage() {
             <p className="font-bold tracking-tight">Fair-Play Auditing Mode Active</p>
             <p className="text-amber-800 dark:text-amber-300/90 leading-relaxed">
               You are signed in as an <strong>{currentUser.role}</strong>. In accordance with carnival integrity standards, organizers and admins are strictly prohibited from evaluating or scoring submitted projects. Scoring controls are locked to read-only mode and can only be submitted by official certified Judges.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Track Assignment Alert if Judge is not assigned to this track */}
+      {isJudge && !isAssignedJudge && (
+        <div className="p-4 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-900 dark:text-rose-200 flex items-start gap-3">
+          <ShieldAlert className="h-5 w-5 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
+          <div className="text-xs space-y-1">
+            <p className="font-bold tracking-tight">Competition Roster Isolation Active</p>
+            <p className="text-rose-800 dark:text-rose-300/90 leading-relaxed">
+              You are certified as an official Judge, but you have not been assigned to evaluate <strong>{submission?.event.title}</strong>. Competition rules mandate that only judges explicitly assigned to this specific track by the organizers are permitted to score submissions.
             </p>
           </div>
         </div>
@@ -305,7 +328,7 @@ export default function JudgeEvaluationPage() {
                       min="0"
                       max={crit.maxScore}
                       value={dynamicScores[crit.id] ?? 0}
-                      disabled={!isJudge}
+                      disabled={!canScore}
                       onChange={(e) =>
                         setDynamicScores((prev) => ({
                           ...prev,
@@ -336,7 +359,7 @@ export default function JudgeEvaluationPage() {
                       min="0"
                       max="30"
                       value={festDirectoryUX}
-                      disabled={!isJudge}
+                      disabled={!canScore}
                       onChange={(e) => setFestDirectoryUX(Number(e.target.value))}
                       className="w-full accent-violet-600 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     />
@@ -360,7 +383,7 @@ export default function JudgeEvaluationPage() {
                       min="0"
                       max="30"
                       value={registrationSystem}
-                      disabled={!isJudge}
+                      disabled={!canScore}
                       onChange={(e) => setRegistrationSystem(Number(e.target.value))}
                       className="w-full accent-violet-600 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     />
@@ -384,7 +407,7 @@ export default function JudgeEvaluationPage() {
                       min="0"
                       max="30"
                       value={organizerManagement}
-                      disabled={!isJudge}
+                      disabled={!canScore}
                       onChange={(e) => setOrganizerManagement(Number(e.target.value))}
                       className="w-full accent-violet-600 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     />
@@ -408,7 +431,7 @@ export default function JudgeEvaluationPage() {
                       min="0"
                       max="30"
                       value={bonusSolutions}
-                      disabled={!isJudge}
+                      disabled={!canScore}
                       onChange={(e) => setBonusSolutions(Number(e.target.value))}
                       className="w-full accent-violet-600 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     />
@@ -424,7 +447,7 @@ export default function JudgeEvaluationPage() {
                 <textarea
                   rows={3}
                   value={feedback}
-                  disabled={!isJudge}
+                  disabled={!canScore}
                   onChange={(e) => setFeedback(e.target.value)}
                   placeholder={
                     isJudge
@@ -435,7 +458,7 @@ export default function JudgeEvaluationPage() {
                 />
               </div>
 
-              {isJudge ? (
+              {canScore ? (
                 <button
                   type="submit"
                   disabled={loading}
@@ -446,7 +469,9 @@ export default function JudgeEvaluationPage() {
                 </button>
               ) : (
                 <div className="w-full py-2.5 rounded-md text-xs font-semibold bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 text-center border border-zinc-200 dark:border-zinc-700">
-                  Scoring Locked — Reserved Exclusively for Official Judges
+                  {!isJudge
+                    ? 'Scoring Locked — Reserved Exclusively for Official Judges'
+                    : 'Scoring Locked — You Are Not Assigned to Evaluate this Track'}
                 </div>
               )}
             </form>
