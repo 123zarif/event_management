@@ -2,9 +2,10 @@ import React from 'react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
+import { getCurrentUser } from '@/lib/auth';
 import { EventCard } from '@/components/EventCard';
 import { StatusBadge } from '@/components/StatusBadge';
-import { Calendar, MapPin, ArrowLeft } from 'lucide-react';
+import { Calendar, MapPin, ArrowLeft, Plus, Trophy } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
@@ -15,6 +16,8 @@ interface FestDetailPageProps {
 
 export default async function FestDetailPage({ params }: FestDetailPageProps) {
   const { festSlug } = await params;
+  const user = await getCurrentUser();
+  const isOrganizer = user?.role === 'ORGANIZER' || user?.role === 'ADMIN';
 
   const fest = await prisma.fest.findUnique({
     where: { slug: festSlug },
@@ -60,6 +63,16 @@ export default async function FestDetailPage({ params }: FestDetailPageProps) {
               {fest.title}
             </h1>
           </div>
+
+          {isOrganizer && (
+            <Link
+              href={`/admin/events/new?festId=${fest.id}`}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold bg-violet-600 hover:bg-violet-700 text-white transition-colors shadow-sm shrink-0"
+            >
+              <Plus className="h-4 w-4" />
+              <span>Add Competition / Track to this Festival</span>
+            </Link>
+          )}
         </div>
 
         <p className="text-sm text-zinc-600 dark:text-zinc-300 leading-relaxed max-w-3xl">
@@ -82,19 +95,48 @@ export default async function FestDetailPage({ params }: FestDetailPageProps) {
 
       {/* Events List in Fest */}
       <div className="space-y-4">
-        <div className="border-b border-zinc-200 dark:border-zinc-800 pb-3">
-          <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 tracking-tight">
-            Competitions & Events ({fest.events.length})
-          </h2>
-          <p className="text-xs text-zinc-600 dark:text-zinc-400">
-            Select an event to view full schedule, criteria, rules, and registration details.
-          </p>
+        <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-3">
+          <div>
+            <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 tracking-tight">
+              Competitions & Events ({fest.events.length})
+            </h2>
+            <p className="text-xs text-zinc-600 dark:text-zinc-400">
+              Select an event to view full schedule, criteria, rules, and registration details.
+            </p>
+          </div>
+
+          {isOrganizer && fest.events.length > 0 && (
+            <Link
+              href={`/admin/events/new?festId=${fest.id}`}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium text-violet-600 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-950/50 border border-violet-200 dark:border-violet-800 transition-colors"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              <span>Add Another Track</span>
+            </Link>
+          )}
         </div>
 
         {fest.events.length === 0 ? (
-          <p className="p-8 text-center text-xs text-zinc-500 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/30">
-            No events announced for this festival yet.
-          </p>
+          <div className="p-10 text-center rounded-xl border border-dashed border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/30 space-y-3">
+            <Trophy className="h-8 w-8 text-zinc-400 mx-auto" />
+            <div className="space-y-1">
+              <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                No competitions created for this festival yet
+              </p>
+              <p className="text-xs text-zinc-500 max-w-sm mx-auto">
+                Organizers can attach competitive tracks, hackathons, seminars, or workshops directly to this festival.
+              </p>
+            </div>
+            {isOrganizer && (
+              <Link
+                href={`/admin/events/new?festId=${fest.id}`}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md text-xs font-semibold bg-violet-600 hover:bg-violet-700 text-white transition-colors shadow-xs"
+              >
+                <Plus className="h-4 w-4" />
+                <span>Add First Competition to {fest.title}</span>
+              </Link>
+            )}
+          </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {fest.events.map((event) => (

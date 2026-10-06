@@ -9,7 +9,8 @@ import {
   Printer, 
   History, 
   HelpCircle,
-  ArrowRight
+  ArrowRight,
+  Calendar
 } from 'lucide-react';
 import { formatDateTime } from '@/lib/utils';
 import { redirect } from 'next/navigation';
@@ -74,10 +75,18 @@ export default async function AdminDashboardPage() {
         {/* Quick Operational Shortcuts */}
         <div className="flex flex-wrap items-center gap-2">
           <Link
-            href="/admin/scanner"
+            href="/admin/fests/new"
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-violet-600 text-white hover:bg-violet-700 dark:hover:bg-violet-500 transition-colors shadow-sm"
           >
-            <QrCode className="h-4 w-4" />
+            <Calendar className="h-4 w-4" />
+            <span>New Festival / Event</span>
+          </Link>
+
+          <Link
+            href="/admin/scanner"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors shadow-xs"
+          >
+            <QrCode className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
             <span>Webcam QR Scanner</span>
           </Link>
 

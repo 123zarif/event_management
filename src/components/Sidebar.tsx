@@ -101,6 +101,7 @@ export function Sidebar({ currentUser, collapsed, mobileOpen, onCloseMobile }: S
       title: 'Operations & Staff',
       items: [
         { label: 'Admin Command', href: '/admin', icon: Shield, badge: 'Staff' },
+        { label: 'New Festival / Event', href: '/admin/fests/new', icon: Calendar, badge: 'New' },
         { label: 'New Competition', href: '/admin/events/new', icon: Plus, badge: 'New' },
         { label: 'Event Categories', href: '/admin/categories', icon: Tag },
         { label: 'Attendee Registry', href: '/admin/participants', icon: Users },

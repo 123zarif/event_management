@@ -18,6 +18,7 @@ import {
 import { switchPersonaAction, logoutAction } from '@/actions/auth';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { EventSwitcher } from '@/components/EventSwitcher';
+import { FestSwitcher } from '@/components/FestSwitcher';
 
 interface NavbarProps {
   currentUser?: {
@@ -80,18 +81,9 @@ export function Navbar({
             )}
           </button>
 
-          {/* Active Context Breadcrumb & Global Event Switcher */}
+          {/* Active Context: Festival Switcher & Track Switcher */}
           <div className="flex items-center gap-2">
-            <div className="hidden sm:flex items-center gap-2 px-2.5 py-1 rounded-md bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="font-semibold text-zinc-800 dark:text-zinc-200">DRMC IT Club</span>
-              <span className="text-zinc-400">/</span>
-              <span className="text-violet-600 dark:text-violet-400 font-medium">
-                9th Tech Carnival 2026
-              </span>
-            </div>
-
-            {/* Global Multi-Event Context Switcher */}
+            <FestSwitcher currentUser={currentUser} />
             <EventSwitcher />
           </div>
         </div>

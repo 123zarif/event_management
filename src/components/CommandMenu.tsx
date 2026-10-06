@@ -50,6 +50,7 @@ export function CommandMenu({ isOpen, onClose, currentUser }: CommandMenuProps) 
     { title: 'Contestant Help Desk', category: 'Support', href: '/support', icon: HelpCircle, roles: ['ATTENDEE', 'ORGANIZER', 'ADMIN'] },
     { title: 'Verify Digital Certificate', category: 'Verification', href: '/verify-certificate', icon: ShieldCheck },
     { title: 'Organizer Admin Dashboard', category: 'Management', href: '/admin', icon: Users, roles: ['ORGANIZER', 'ADMIN'] },
+    { title: 'Create New Festival / Event', category: 'Management', href: '/admin/fests/new', icon: Calendar, roles: ['ORGANIZER', 'ADMIN'] },
     { title: 'Create New Competition Track', category: 'Management', href: '/admin/events/new', icon: Trophy, roles: ['ORGANIZER', 'ADMIN'] },
     { title: 'Manage Event Categories', category: 'Management', href: '/admin/categories', icon: Tag, roles: ['ORGANIZER', 'ADMIN'] },
     { title: 'Judge Rosters & Track Assignments', category: 'Management', href: '/admin/competitions/ai-web-development-contest/judges', icon: Award, roles: ['ORGANIZER', 'ADMIN'] },

@@ -1,13 +1,17 @@
 import React from 'react';
 import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
+import { getCurrentUser } from '@/lib/auth';
 import { StatusBadge } from '@/components/StatusBadge';
-import { Calendar, MapPin, ArrowRight, Trophy } from 'lucide-react';
+import { Calendar, MapPin, ArrowRight, Trophy, Plus } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 
 export default async function FestsPage() {
+  const user = await getCurrentUser();
+  const isOrganizer = user?.role === 'ORGANIZER' || user?.role === 'ADMIN';
+
   const fests = await prisma.fest.findMany({
     include: {
       organization: true,
@@ -15,19 +19,31 @@ export default async function FestsPage() {
         select: { id: true },
       },
     },
-    orderBy: { startDate: 'asc' },
+    orderBy: { startDate: 'desc' },
   });
 
   return (
     <div className="w-full space-y-6">
       {/* Header */}
-      <div className="border-b border-zinc-200 dark:border-zinc-800 pb-5">
-        <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
-          Festival Directory
-        </h1>
-        <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-1">
-          Explore student technology festivals organized by DRMC Information Technology Club.
-        </p>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-zinc-200 dark:border-zinc-800 pb-5">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
+            Festival & Carnival Directory
+          </h1>
+          <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-1">
+            Explore technology festivals and carnivals organized by DRMC Information Technology Club.
+          </p>
+        </div>
+
+        {isOrganizer && (
+          <Link
+            href="/admin/fests/new"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-md text-xs font-semibold bg-violet-600 hover:bg-violet-700 text-white transition-colors shadow-xs"
+          >
+            <Plus className="h-4 w-4" />
+            <span>Create Festival / Event</span>
+          </Link>
+        )}
       </div>
 
       {/* Fests Grid */}

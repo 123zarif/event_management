@@ -4,7 +4,12 @@ import { getCurrentUser } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { CreateEventForm } from './CreateEventForm';
 
-export default async function NewEventPage() {
+interface NewEventPageProps {
+  searchParams: Promise<{ festId?: string }>;
+}
+
+export default async function NewEventPage({ searchParams }: NewEventPageProps) {
+  const { festId } = await searchParams;
   const user = await getCurrentUser();
 
   if (!user || (user.role !== 'ORGANIZER' && user.role !== 'ADMIN')) {
@@ -13,7 +18,7 @@ export default async function NewEventPage() {
 
   const [fests, categories] = await Promise.all([
     prisma.fest.findMany({
-      orderBy: { startDate: 'asc' },
+      orderBy: { startDate: 'desc' },
       select: {
         id: true,
         slug: true,
@@ -35,7 +40,11 @@ export default async function NewEventPage() {
 
   return (
     <div className="w-full max-w-5xl mx-auto space-y-6">
-      <CreateEventForm fests={fests} initialCategories={categories} />
+      <CreateEventForm 
+        fests={fests} 
+        initialCategories={categories} 
+        preselectedFestId={festId}
+      />
     </div>
   );
 }

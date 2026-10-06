@@ -41,9 +41,14 @@ interface CreateEventFormProps {
     status: string;
   }>;
   initialCategories?: CategoryItem[];
+  preselectedFestId?: string;
 }
 
-export function CreateEventForm({ fests, initialCategories = [] }: CreateEventFormProps) {
+export function CreateEventForm({ 
+  fests, 
+  initialCategories = [],
+  preselectedFestId
+}: CreateEventFormProps) {
   const router = useRouter();
 
   // Mode: Competitive Track vs General Event
@@ -61,7 +66,11 @@ export function CreateEventForm({ fests, initialCategories = [] }: CreateEventFo
   const [creatingCat, setCreatingCat] = useState(false);
 
   // Basic Information
-  const [festId, setFestId] = useState(fests[0]?.id || '');
+  const [festId, setFestId] = useState(
+    preselectedFestId && fests.some((f) => f.id === preselectedFestId)
+      ? preselectedFestId
+      : fests[0]?.id || ''
+  );
   const [title, setTitle] = useState('');
   const [slug, setSlug] = useState('');
   const [autoSlug, setAutoSlug] = useState(true);
@@ -431,9 +440,18 @@ export function CreateEventForm({ fests, initialCategories = [] }: CreateEventFo
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">
-                  Target Festival *
-                </label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                    Target Festival *
+                  </label>
+                  <Link
+                    href="/admin/fests/new"
+                    className="text-[10px] text-violet-600 dark:text-violet-400 hover:underline flex items-center gap-1 font-medium cursor-pointer"
+                  >
+                    <Plus className="h-3 w-3" />
+                    New Festival
+                  </Link>
+                </div>
                 <select
                   value={festId}
                   onChange={(e) => setFestId(e.target.value)}
@@ -445,6 +463,12 @@ export function CreateEventForm({ fests, initialCategories = [] }: CreateEventFo
                     </option>
                   ))}
                 </select>
+                {preselectedFestId && (
+                  <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono mt-1 flex items-center gap-1">
+                    <CheckCircle2 className="h-3 w-3" />
+                    Pre-selected from festival page
+                  </p>
+                )}
               </div>
 
               <div>
