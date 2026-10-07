@@ -1,151 +1,138 @@
 import React from 'react';
-import Link from 'next/link';
-import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth';
-import { Trophy, ExternalLink, ArrowRight, CheckCircle2, ShieldAlert } from 'lucide-react';
-import { GithubIcon } from '@/components/Icons';
+import { prisma } from '@/lib/prisma';
 import { redirect } from 'next/navigation';
+import { JudgeWorkstationClient, SubmissionItem } from '@/components/dashboards/JudgeWorkstationClient';
+import { ShieldAlert, Layers } from 'lucide-react';
+import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';
 
 export default async function JudgePortalPage() {
   const user = await getCurrentUser();
 
-  if (!user || (user.role !== 'JUDGE' && user.role !== 'ORGANIZER' && user.role !== 'ADMIN')) {
+  if (!user || user.role !== 'JUDGE') {
     redirect('/');
   }
 
-  const submissions = await prisma.submission.findMany({
-    include: {
-      event: { include: { fest: true } },
-      team: true,
-      user: true,
-      scores: {
-        where: { judgeId: user.id },
+  // Fetch only competitions assigned to this judge (Item #19 & #40)
+  const assignedEvents = await prisma.event.findMany({
+    where: {
+      assignedJudges: {
+        some: { judgeId: user.id },
       },
     },
-    orderBy: { submittedAt: 'desc' },
+    include: {
+      fest: { select: { title: true } },
+      submissions: {
+        include: {
+          team: { select: { name: true } },
+          user: { select: { name: true, email: true } },
+          scores: {
+            include: {
+              judge: { select: { id: true, name: true, email: true } },
+            },
+          },
+        },
+        orderBy: { submittedAt: 'desc' },
+      },
+    },
+    orderBy: { title: 'asc' },
   });
 
-  return (
-    <div className="w-full space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-zinc-200 dark:border-zinc-800 pb-5">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-[10px] font-mono uppercase tracking-wider text-violet-600 dark:text-violet-400 font-bold px-2 py-0.5 rounded bg-violet-50 dark:bg-violet-950/70 border border-violet-200 dark:border-violet-800">
-              Judge Evaluation Portal
-            </span>
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
-            <Trophy className="h-6 w-6 text-violet-600 dark:text-violet-400" />
-            Assigned Project Submissions
-          </h1>
-          <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-1">
-            Welcome, {user.name}. Evaluate contest entries across the 4 official 30-pt criteria.
-          </p>
-        </div>
-
-        <Link
-          href="/leaderboards"
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors shadow-xs"
-        >
-          <span>View Public Scoreboards</span>
-          <ArrowRight className="h-3.5 w-3.5" />
-        </Link>
-      </div>
-
-      {/* Role Alert Banner if Organizer/Admin */}
-      {user.role !== 'JUDGE' && (
-        <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-200 flex items-start gap-3">
-          <ShieldAlert className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-          <div className="text-xs space-y-1">
-            <p className="font-bold tracking-tight">Fair-Play Auditing Mode Active</p>
-            <p className="text-amber-800 dark:text-amber-300/90 leading-relaxed">
-              You are viewing this queue as an <strong>{user.role}</strong>. Organizers and Admins cannot evaluate or score submitted student projects. You may inspect submissions and review existing scores for logistical auditing, but scoring actions are locked strictly to official certified Judges.
+  if (assignedEvents.length === 0) {
+    return (
+      <div className="w-full space-y-8">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-zinc-200 dark:border-zinc-800 pb-6">
+          <div>
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className="text-[10px] font-mono uppercase tracking-wider font-bold px-2 py-0.5 rounded bg-violet-100 dark:bg-violet-950/80 text-violet-700 dark:text-violet-300 border border-violet-200 dark:border-violet-800">
+                Judge Evaluation Workstation
+              </span>
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
+              Evaluation Console — {user.name}
+            </h1>
+            <p className="text-xs sm:text-sm text-zinc-600 dark:text-zinc-400 mt-1">
+              You are signed in as a certified Judge. Submissions will appear once you are assigned to tracks.
             </p>
           </div>
-        </div>
-      )}
 
-      {/* Submissions List */}
-      <div className="space-y-4">
-        {submissions.length === 0 ? (
-          <div className="p-12 text-center rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/30 shadow-xs">
-            <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-300">No project submissions available for evaluation yet.</p>
+          <div className="flex items-center gap-2.5 shrink-0">
+            <Link
+              href="/leaderboards"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-md text-xs font-semibold bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors shadow-xs"
+            >
+              <Layers className="h-3.5 w-3.5 text-violet-600 dark:text-violet-400" />
+              Public Scoreboards
+            </Link>
           </div>
-        ) : (
-          submissions.map((sub) => {
-            const myScore = sub.scores[0];
-            return (
-              <div
-                key={sub.id}
-                className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 p-5 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/40 hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors shadow-xs"
-              >
-                <div className="space-y-2 flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-mono uppercase text-violet-600 dark:text-violet-400 font-bold">
-                      {sub.event.title}
-                    </span>
-                    {myScore ? (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
-                        <CheckCircle2 className="h-3 w-3" />
-                        Scored: {myScore.totalScore}/120
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
-                        Awaiting Your Score
-                      </span>
-                    )}
-                  </div>
+        </div>
 
-                  <h3 className="text-base font-bold text-zinc-900 dark:text-zinc-100">
-                    {sub.title}
-                  </h3>
-
-                  <p className="text-xs text-zinc-600 dark:text-zinc-400 line-clamp-2">
-                    {sub.description}
-                  </p>
-
-                  <div className="flex flex-wrap items-center gap-4 text-xs pt-1">
-                    <span className="text-zinc-800 dark:text-zinc-300 font-medium">
-                      {sub.team ? `Team: ${sub.team.name}` : `Author: ${sub.user.name}`}
-                    </span>
-                    <a
-                      href={sub.repoUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-1 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
-                    >
-                      <GithubIcon className="h-3.5 w-3.5" />
-                      Repository
-                    </a>
-                    <a
-                      href={sub.liveDemoUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-1 text-violet-600 dark:text-violet-400 hover:text-violet-700 dark:hover:text-violet-300 font-medium"
-                    >
-                      <ExternalLink className="h-3.5 w-3.5" />
-                      Live Demo
-                    </a>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 w-full md:w-auto justify-end">
-                  <Link
-                    href={`/judge/eval/${sub.id}`}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md text-xs font-semibold bg-violet-600 text-white hover:bg-violet-700 dark:hover:bg-violet-500 transition-colors shadow-sm"
-                  >
-                    <span>{myScore ? 'Update Rubric Score' : 'Evaluate Project'}</span>
-                    <ArrowRight className="h-3.5 w-3.5" />
-                  </Link>
-                </div>
-              </div>
-            );
-          })
-        )}
+        <div className="p-12 text-center rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/30 space-y-3 shadow-xs">
+          <ShieldAlert className="h-10 w-10 text-amber-500 mx-auto" />
+          <h2 className="text-base font-bold text-zinc-900 dark:text-zinc-100">
+            No Competition Tracks Assigned Yet
+          </h2>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-md mx-auto leading-relaxed">
+            You are logged in as certified Judge <strong>{user.name}</strong>, but event organizers have not yet assigned you to any competition tracks. Once an organizer adds you to a track in the Judge Roster, all submissions for those competitions will appear in this unified workstation.
+          </p>
+        </div>
       </div>
-    </div>
+    );
+  }
+
+  // Flatten submissions across all assigned tracks
+  const allSubmissionsRaw = assignedEvents.flatMap((e) =>
+    e.submissions.map((sub) => ({
+      ...sub,
+      event: {
+        id: e.id,
+        slug: e.slug,
+        title: e.title,
+        category: e.category,
+        customCategory: e.customCategory,
+        isScoreboardFrozen: e.isScoreboardFrozen,
+        rulebookUrl: e.rulebookUrl,
+        fest: { title: e.fest.title },
+      },
+    }))
+  );
+
+  // Resiliently resolve claim judge names
+  const claimJudgeIds = Array.from(
+    new Set(allSubmissionsRaw.map((s) => s.claimedByJudgeId).filter((id): id is string => Boolean(id)))
+  );
+
+  const claimJudges = claimJudgeIds.length > 0
+    ? await prisma.user.findMany({
+        where: { id: { in: claimJudgeIds } },
+        select: { id: true, name: true, email: true },
+      })
+    : [];
+
+  const claimJudgeMap = new Map(claimJudges.map((j) => [j.id, j]));
+
+  const submissions: SubmissionItem[] = allSubmissionsRaw.map((sub) => ({
+    ...sub,
+    claimedByJudge: sub.claimedByJudgeId ? claimJudgeMap.get(sub.claimedByJudgeId) || null : null,
+  }));
+
+  const assignedTracks = assignedEvents.map((e) => ({
+    id: e.id,
+    slug: e.slug,
+    title: e.title,
+    category: e.category,
+    customCategory: e.customCategory,
+    rulebookUrl: e.rulebookUrl,
+    submissionsCount: e.submissions.length,
+  }));
+
+  return (
+    <JudgeWorkstationClient
+      currentUser={user}
+      assignedTracks={assignedTracks}
+      initialSubmissions={submissions}
+    />
   );
 }

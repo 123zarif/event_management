@@ -23,8 +23,8 @@ interface TicketPassProps {
     event: {
       title: string;
       category: string;
-      venue: string;
-      eventDate: Date | string;
+      venue?: string | null;
+      eventDate?: Date | string | null;
       fest: {
         title: string;
         location: string;
@@ -75,6 +75,7 @@ export function TicketPass({ registration, triggerConfetti = false }: TicketPass
 
   const handleDownloadIcs = () => {
     const event = registration.event;
+    if (!event.eventDate) return;
     const dateObj = new Date(event.eventDate);
     const startStr = dateObj.toISOString().replace(/-|:|\.\d\d\d/g, '');
     const endStr = new Date(dateObj.getTime() + 4 * 60 * 60 * 1000)
@@ -92,7 +93,7 @@ export function TicketPass({ registration, triggerConfetti = false }: TicketPass
       `DTEND:${endStr}`,
       `SUMMARY:${event.title} - ${event.fest.title}`,
       `DESCRIPTION:Accreditation Pass: ${registration.ticketCode} - ${registration.user.name}`,
-      `LOCATION:${event.venue}, ${event.fest.location}`,
+      `LOCATION:${event.venue || 'TBA'}, ${event.fest.location}`,
       'STATUS:CONFIRMED',
       'END:VEVENT',
       'END:VCALENDAR',
@@ -166,29 +167,47 @@ export function TicketPass({ registration, triggerConfetti = false }: TicketPass
               <p className="text-[10px] uppercase font-mono text-zinc-500 mb-0.5">Date & Venue</p>
               <div className="flex items-center gap-1.5 text-zinc-700 dark:text-zinc-300">
                 <Calendar className="h-3.5 w-3.5 text-zinc-400 dark:text-zinc-500" />
-                <span>{formatDateTime(registration.event.eventDate)}</span>
+                <span>
+                  {registration.event.eventDate ? formatDateTime(registration.event.eventDate) : 'Date TBA (Undecided)'}
+                </span>
               </div>
-              <div className="flex items-center gap-1.5 text-zinc-500 dark:text-zinc-400 mt-0.5">
-                <MapPin className="h-3.5 w-3.5 text-zinc-400 dark:text-zinc-500" />
-                <span>{registration.event.venue}</span>
-              </div>
+              {registration.event.venue && (
+                <div className="flex items-center gap-1.5 text-zinc-500 dark:text-zinc-400 mt-0.5">
+                  <MapPin className="h-3.5 w-3.5 text-zinc-400 dark:text-zinc-500" />
+                  <span>{registration.event.venue}</span>
+                </div>
+              )}
             </div>
           </div>
 
-          {/* QR Code */}
-          <div className="sm:col-span-2 flex flex-col items-center justify-center p-3 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/60">
-            <div className="p-2 bg-white rounded-md shadow-xs">
-              <QRCodeSVG
-                value={registration.qrCodeData}
-                size={120}
-                level="M"
-                includeMargin={false}
-              />
+          {/* QR Code or Revoked Badge */}
+          {registration.status === 'CANCELLED' ? (
+            <div className="sm:col-span-2 flex flex-col items-center justify-center p-5 rounded-lg border border-rose-300 dark:border-rose-900 bg-rose-50 dark:bg-rose-950/40 text-center space-y-2">
+              <div className="h-10 w-10 rounded-full bg-rose-100 dark:bg-rose-900/80 flex items-center justify-center text-rose-600 dark:text-rose-300 font-bold text-lg">
+                ✕
+              </div>
+              <p className="text-xs font-bold text-rose-700 dark:text-rose-300">
+                PASS REVOKED & INVALID
+              </p>
+              <p className="text-[10px] text-rose-600 dark:text-rose-400 leading-tight">
+                This registration has been cancelled. Gate entry will be rejected.
+              </p>
             </div>
-            <p className="text-[10px] font-mono text-zinc-500 dark:text-zinc-400 mt-2 text-center">
-              Scan at Venue Gate
-            </p>
-          </div>
+          ) : (
+            <div className="sm:col-span-2 flex flex-col items-center justify-center p-3 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/60">
+              <div className="p-2 bg-white rounded-md shadow-xs">
+                <QRCodeSVG
+                  value={registration.qrCodeData}
+                  size={120}
+                  level="M"
+                  includeMargin={false}
+                />
+              </div>
+              <p className="text-[10px] font-mono text-zinc-500 dark:text-zinc-400 mt-2 text-center">
+                Scan at Venue Gate
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Check-in status footer */}

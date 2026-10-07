@@ -26,6 +26,12 @@ export async function submitProject(
 
     let submission;
     if (existing) {
+      // Check if deadline passed
+      const event = await prisma.event.findUnique({ where: { id: eventId } });
+      if (event?.registrationDeadline && new Date() > new Date(event.registrationDeadline)) {
+        return { success: false, message: 'Submission deadline has passed. Revisions are closed.' };
+      }
+
       submission = await prisma.submission.update({
         where: { id: existing.id },
         data: {
@@ -34,6 +40,7 @@ export async function submitProject(
           liveDemoUrl: data.liveDemoUrl,
           videoUrl: data.videoUrl,
           description: data.description,
+          revisionNumber: (existing.revisionNumber || 1) + 1,
           submittedAt: new Date(),
         },
       });
@@ -48,6 +55,7 @@ export async function submitProject(
           liveDemoUrl: data.liveDemoUrl,
           videoUrl: data.videoUrl,
           description: data.description,
+          revisionNumber: 1,
         },
       });
     }
@@ -58,17 +66,127 @@ export async function submitProject(
         entityType: 'Submission',
         entityId: submission.id,
         actorId: userId,
-        metadata: { title: data.title, eventId },
+        metadata: { title: data.title, eventId, revisionNumber: submission.revisionNumber },
       },
     });
 
     revalidatePath(`/events/${eventId}/submit`);
     revalidatePath(`/judge`);
 
-    return { success: true, message: 'Project submitted successfully!', submission };
+    return { 
+      success: true, 
+      message: `Project ${existing ? `Revision #${submission.revisionNumber}` : ''} submitted successfully! You may update it until the deadline.`, 
+      submission 
+    };
   } catch (error: unknown) {
     const err = error as Error;
     return { success: false, message: err.message || 'Submission failed' };
+  }
+}
+
+export async function claimSubmissionForReview(submissionId: string) {
+  try {
+    const user = await getCurrentUser();
+    if (!user || user.role !== 'JUDGE') {
+      return { success: false, message: 'Unauthorized: Only certified Judges can claim submissions.' };
+    }
+
+    const sub = await prisma.submission.findUnique({
+      where: { id: submissionId },
+      include: {
+        scores: true,
+      },
+    });
+
+    if (!sub) return { success: false, message: 'Submission not found' };
+
+    // Check assignment
+    const isAssigned = await prisma.eventJudge.findUnique({
+      where: {
+        eventId_judgeId: {
+          eventId: sub.eventId,
+          judgeId: user.id,
+        },
+      },
+    });
+
+    if (!isAssigned) {
+      return { success: false, message: 'You are not assigned to evaluate this competition track.' };
+    }
+
+    // Check if already scored by another judge
+    if (sub.scores.length > 0 && sub.scores[0].judgeId !== user.id) {
+      return { success: false, message: 'This project has already been evaluated by another judge.' };
+    }
+
+    // Check if claimed by another judge
+    if (sub.claimedByJudgeId && sub.claimedByJudgeId !== user.id) {
+      const claimJudge = await prisma.user.findUnique({
+        where: { id: sub.claimedByJudgeId },
+        select: { name: true },
+      });
+      return {
+        success: false,
+        message: `This project is already claimed for review by ${claimJudge?.name || 'another judge'}.`,
+      };
+    }
+
+    await prisma.submission.update({
+      where: { id: submissionId },
+      data: {
+        claimedByJudgeId: user.id,
+        claimedAt: new Date(),
+      },
+    });
+
+    revalidatePath('/judge');
+    revalidatePath(`/judge/eval/${submissionId}`);
+
+    return { success: true, message: 'Project successfully claimed for your evaluation!' };
+  } catch (error: unknown) {
+    const err = error as Error;
+    return { success: false, message: err.message || 'Failed to claim project.' };
+  }
+}
+
+export async function releaseSubmissionClaim(submissionId: string) {
+  try {
+    const user = await getCurrentUser();
+    if (!user || user.role !== 'JUDGE') {
+      return { success: false, message: 'Unauthorized' };
+    }
+
+    const sub = await prisma.submission.findUnique({
+      where: { id: submissionId },
+      include: { scores: true },
+    });
+
+    if (!sub) return { success: false, message: 'Submission not found' };
+
+    // Don't release if already scored
+    if (sub.scores.some((s) => s.judgeId === user.id)) {
+      return { success: false, message: 'Cannot release a submission that has already been scored.' };
+    }
+
+    if (sub.claimedByJudgeId !== user.id) {
+      return { success: false, message: 'You do not hold the active claim on this submission.' };
+    }
+
+    await prisma.submission.update({
+      where: { id: submissionId },
+      data: {
+        claimedByJudgeId: null,
+        claimedAt: null,
+      },
+    });
+
+    revalidatePath('/judge');
+    revalidatePath(`/judge/eval/${submissionId}`);
+
+    return { success: true, message: 'Project claim released. Other judges can now review it.' };
+  } catch (error: unknown) {
+    const err = error as Error;
+    return { success: false, message: err.message || 'Failed to release claim.' };
   }
 }
 
@@ -97,11 +215,43 @@ export async function submitJudgeScore(
     // COMPETITION ROSTER ENFORCEMENT: Judge must be specifically assigned to this competition track
     const submission = await prisma.submission.findUnique({
       where: { id: submissionId },
-      include: { event: true },
+      include: { 
+        event: true,
+        scores: true,
+      },
     });
 
     if (!submission) {
       return { success: false, message: 'Submission not found.' };
+    }
+
+    // SINGLE-JUDGE EXCLUSIVITY & MANDATORY CLAIM ENFORCEMENT (Items #19 & #41)
+    const existingOtherJudgeScore = submission.scores.find((s) => s.judgeId !== user.id);
+    if (existingOtherJudgeScore) {
+      return {
+        success: false,
+        message: 'Access Denied: This submission has already been evaluated by another certified judge. Only one judge may evaluate each submission.',
+      };
+    }
+
+    // MANDATORY CLAIM (Item #41): Judge cannot evaluate unless they have explicitly claimed the submission
+    if (!submission.claimedByJudgeId) {
+      return {
+        success: false,
+        message: 'Access Denied: You must claim this project before evaluating it. Please click "Claim Project for Evaluation" first.',
+      };
+    }
+
+    // EXCLUSIVE CLAIM (Item #19): Another judge cannot evaluate if claimed by someone else
+    if (submission.claimedByJudgeId !== user.id) {
+      const claimJudge = await prisma.user.findUnique({
+        where: { id: submission.claimedByJudgeId },
+        select: { name: true },
+      });
+      return {
+        success: false,
+        message: `Access Denied: This submission is currently claimed by ${claimJudge?.name || 'another judge'}. Only the claiming judge can evaluate this project.`,
+      };
     }
 
     const isAssigned = await prisma.eventJudge.findUnique({
@@ -161,20 +311,30 @@ export async function submitJudgeScore(
       },
     });
 
+    // Ensure claimedByJudgeId is locked to this judge
+    await prisma.submission.update({
+      where: { id: submissionId },
+      data: {
+        claimedByJudgeId: user.id,
+        claimedAt: new Date(),
+      },
+    });
+
     await prisma.auditLog.create({
       data: {
         action: 'SCORE_SUBMITTED',
         entityType: 'JudgeScore',
         entityId: judgeScore.id,
         actorId: judgeId,
-        metadata: { totalScore, submissionId },
+        metadata: { totalScore, submissionId, judgeName: user.name },
       },
     });
 
     revalidatePath('/judge');
     revalidatePath('/admin/competitions');
+    revalidatePath(`/events/${submission.event.slug}/leaderboard`);
 
-    return { success: true, message: `Score of ${totalScore}/120 submitted successfully!` };
+    return { success: true, message: `Score of ${totalScore} points recorded successfully by Judge ${user.name}!` };
   } catch (error: unknown) {
     const err = error as Error;
     return { success: false, message: err.message || 'Scoring failed' };
@@ -184,8 +344,28 @@ export async function submitJudgeScore(
 export async function toggleScoreboardFreeze(eventId: string, freeze: boolean) {
   try {
     const user = await getCurrentUser();
-    if (!user || (user.role !== 'ORGANIZER' && user.role !== 'ADMIN')) {
-      return { success: false, message: 'Unauthorized: Organizer privileges required' };
+    if (!user) {
+      return { success: false, message: 'Unauthorized' };
+    }
+
+    // Allow Organizer, Admin, or an assigned Judge to freeze / publish final standings
+    const isOrgOrAdmin = user.role === 'ORGANIZER' || user.role === 'ADMIN';
+    let isAssignedJudge = false;
+
+    if (user.role === 'JUDGE') {
+      const assignment = await prisma.eventJudge.findUnique({
+        where: {
+          eventId_judgeId: {
+            eventId,
+            judgeId: user.id,
+          },
+        },
+      });
+      isAssignedJudge = !!assignment;
+    }
+
+    if (!isOrgOrAdmin && !isAssignedJudge) {
+      return { success: false, message: 'Unauthorized: Only Organizers or Assigned Judges can freeze / publish the scoreboard.' };
     }
 
     const updated = await prisma.event.update({
@@ -198,7 +378,8 @@ export async function toggleScoreboardFreeze(eventId: string, freeze: boolean) {
         action: freeze ? 'SCOREBOARD_FROZEN' : 'SCOREBOARD_UNFROZEN',
         entityType: 'Event',
         entityId: eventId,
-        metadata: { eventTitle: updated.title },
+        actorId: user.id,
+        metadata: { eventTitle: updated.title, toggledBy: user.name, role: user.role },
       },
     });
 
@@ -207,7 +388,7 @@ export async function toggleScoreboardFreeze(eventId: string, freeze: boolean) {
 
     return {
       success: true,
-      message: freeze ? 'Scoreboard frozen for grand reveal!' : 'Scoreboard unfrozen and live.',
+      message: freeze ? 'Scoreboard frozen for grand reveal!' : 'Scoreboard unfrozen and official standings published!',
     };
   } catch (error: unknown) {
     const err = error as Error;

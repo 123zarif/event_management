@@ -2,7 +2,6 @@ import React from 'react';
 import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth';
-import { StatusBadge } from '@/components/StatusBadge';
 import { 
   Users, 
   QrCode, 
@@ -10,10 +9,12 @@ import {
   History, 
   HelpCircle,
   ArrowRight,
-  Calendar
+  Calendar,
+  Award
 } from 'lucide-react';
 import { formatDateTime } from '@/lib/utils';
 import { redirect } from 'next/navigation';
+import { RecentRegistrationsCard } from '@/components/dashboards/RecentRegistrationsCard';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,13 +34,26 @@ export default async function AdminDashboardPage() {
   const events = await prisma.event.findMany({
     include: {
       fest: true,
+      creator: true,
       _count: { select: { registrations: true, submissions: true } },
     },
     orderBy: { eventDate: 'asc' },
   });
 
-  const recentRegistrations = await prisma.registration.findMany({
-    take: 6,
+  const recentActiveRegistrations = await prisma.registration.findMany({
+    where: { status: { not: 'CANCELLED' } },
+    take: 8,
+    include: {
+      user: true,
+      event: true,
+      team: true,
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  const recentCancelledRegistrations = await prisma.registration.findMany({
+    where: { status: 'CANCELLED' },
+    take: 8,
     include: {
       user: true,
       event: true,
@@ -204,20 +218,34 @@ export default async function AdminDashboardPage() {
                 <div className="flex justify-between items-start">
                   <div>
                     <span className="text-[10px] font-mono uppercase text-violet-600 dark:text-violet-400 font-bold">
-                      {ev.category}
+                      {ev.customCategory || ev.category}
                     </span>
                     <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 mt-0.5">{ev.title}</h3>
                     <p className="text-xs text-zinc-500 dark:text-zinc-400 font-mono">{ev.fest.title}</p>
+                    <p className="text-[11px] text-zinc-500 font-mono mt-1">
+                      Created by <strong className="text-zinc-700 dark:text-zinc-300">{ev.creator?.name || 'Club Organizer'}</strong> on {formatDateTime(ev.createdAt).split(',')[0]}
+                    </p>
                   </div>
 
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                    {ev.isCompetitive && (
+                      <Link
+                        href={`/admin/competitions/${ev.slug}/judges`}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-violet-50 dark:bg-violet-950/60 border border-violet-200 dark:border-violet-800 text-[11px] text-violet-700 dark:text-violet-300 hover:bg-violet-100 dark:hover:bg-violet-900"
+                        title="Manage Assigned Judges"
+                      >
+                        <Award className="h-3 w-3" />
+                        Judges
+                      </Link>
+                    )}
+
                     <Link
                       href={`/admin/events/${ev.slug}/badges`}
                       className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-[11px] text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white"
                       title="Print Accreditation Badges"
                     >
                       <Printer className="h-3 w-3" />
-                      Print Badges
+                      Badges
                     </Link>
 
                     {ev.category === 'GAMING' && (
@@ -251,40 +279,25 @@ export default async function AdminDashboardPage() {
 
       {/* Two columns: Recent Registrations & Audit Log stream */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Recent Registrations */}
-        <div className="space-y-4">
-          <div className="border-b border-zinc-200 dark:border-zinc-800 pb-3 flex justify-between items-center">
-            <h2 className="text-base font-bold text-zinc-900 dark:text-zinc-100 tracking-tight">
-              Recent Registrations
-            </h2>
-            <Link href="/admin/participants" className="text-xs text-violet-600 dark:text-violet-400 hover:underline">
-              View all →
-            </Link>
-          </div>
-
-          <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 divide-y divide-zinc-100 dark:divide-zinc-900 overflow-hidden shadow-xs">
-            {recentRegistrations.length === 0 ? (
-              <p className="p-6 text-center text-xs text-zinc-500">No registrations received yet. Evaluators can register from any competition page.</p>
-            ) : (
-              recentRegistrations.map((reg) => (
-                <div key={reg.id} className="p-3.5 flex justify-between items-center text-xs">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold text-zinc-900 dark:text-zinc-200">{reg.user.name}</span>
-                      <StatusBadge status={reg.status} />
-                    </div>
-                    <p className="text-[11px] text-zinc-500 dark:text-zinc-400 truncate max-w-xs mt-0.5">
-                      {reg.event.title} · Ticket: <span className="font-mono">{reg.ticketCode}</span>
-                    </p>
-                  </div>
-                  <span className="text-[10px] font-mono text-zinc-500">
-                    {formatDateTime(reg.createdAt)}
-                  </span>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
+        {/* Recent Registrations with Active/Cancelled Filter (Item 23) */}
+        <RecentRegistrationsCard
+          activeRegistrations={recentActiveRegistrations.map((r) => ({
+            id: r.id,
+            status: r.status,
+            ticketCode: r.ticketCode,
+            createdAt: r.createdAt.toISOString(),
+            user: { name: r.user.name, email: r.user.email },
+            event: { title: r.event.title },
+          }))}
+          cancelledRegistrations={recentCancelledRegistrations.map((r) => ({
+            id: r.id,
+            status: r.status,
+            ticketCode: r.ticketCode,
+            createdAt: r.createdAt.toISOString(),
+            user: { name: r.user.name, email: r.user.email },
+            event: { title: r.event.title },
+          }))}
+        />
 
         {/* Audit Log Stream */}
         <div className="space-y-4">

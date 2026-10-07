@@ -1,23 +1,35 @@
 import React from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { prisma } from '@/lib/prisma';
 import { StatusBadge } from '@/components/StatusBadge';
 import { 
   Ticket, 
   Trophy, 
-  Users, 
   HelpCircle, 
   ArrowRight, 
-  FileCheck, 
   Calendar, 
   MapPin, 
-  CheckCircle2, 
-  AlertCircle, 
-  ExternalLink,
-  Plus
+  Plus,
+  Bot,
+  Code2,
+  Gamepad2,
+  BookOpen,
+  FileCheck,
+  Clock,
+  Award
 } from 'lucide-react';
-import { formatDateTime, formatCurrency } from '@/lib/utils';
-import { GithubIcon } from '@/components/Icons';
+import { formatDateTime } from '@/lib/utils';
+
+function CategoryIcon({ category, className }: { category: string; className?: string }) {
+  const cat = category?.toUpperCase() || '';
+  if (cat.includes('ROBOT')) return <Bot className={className} />;
+  if (cat.includes('HACK') || cat.includes('DEV') || cat.includes('WEB')) return <Code2 className={className} />;
+  if (cat.includes('PROG') || cat.includes('CODE') || cat.includes('ALGO')) return <Code2 className={className} />;
+  if (cat.includes('GAME') || cat.includes('ESPORT') || cat.includes('CHESS')) return <Gamepad2 className={className} />;
+  if (cat.includes('WORKSHOP') || cat.includes('SEMINAR')) return <BookOpen className={className} />;
+  return <Trophy className={className} />;
+}
 
 interface AttendeeDashboardProps {
   currentUser: {
@@ -30,37 +42,16 @@ interface AttendeeDashboardProps {
 }
 
 export async function AttendeeDashboard({ currentUser }: AttendeeDashboardProps) {
-  // Fetch attendee's registrations
+  // 1. Fetch attendee's active registrations count and basic status
   const registrations = await prisma.registration.findMany({
     where: { userId: currentUser.id },
     include: {
       event: { include: { fest: true } },
-      team: {
-        include: {
-          members: { include: { user: true } },
-        },
-      },
     },
     orderBy: { createdAt: 'desc' },
   });
 
-  // Fetch attendee's project submissions
-  const submissions = await prisma.submission.findMany({
-    where: {
-      OR: [
-        { userId: currentUser.id },
-        { team: { members: { some: { userId: currentUser.id } } } },
-      ],
-    },
-    include: {
-      event: true,
-      team: true,
-      scores: true,
-    },
-    orderBy: { submittedAt: 'desc' },
-  });
-
-  // Fetch attendee's support tickets
+  // 2. Fetch attendee's open support tickets
   const tickets = await prisma.supportTicket.findMany({
     where: { userId: currentUser.id },
     include: {
@@ -68,12 +59,31 @@ export async function AttendeeDashboard({ currentUser }: AttendeeDashboardProps)
       messages: { orderBy: { createdAt: 'desc' }, take: 1 },
     },
     orderBy: { updatedAt: 'desc' },
+    take: 3,
+  });
+
+  // 3. Fetch active & upcoming Festivals
+  const fests = await prisma.fest.findMany({
+    include: {
+      _count: { select: { events: true } },
+      events: {
+        select: {
+          id: true,
+          title: true,
+          slug: true,
+          category: true,
+          customCategory: true,
+        },
+        take: 3,
+      },
+    },
+    orderBy: { startDate: 'asc' },
     take: 4,
   });
 
-  // Fetch other competitions available to register
+  // 4. Fetch available competitions & tracks
   const registeredEventIds = registrations.map((r) => r.eventId);
-  const otherEvents = await prisma.event.findMany({
+  const openCompetitions = await prisma.event.findMany({
     where: {
       id: { notIn: registeredEventIds.length > 0 ? registeredEventIds : ['none'] },
     },
@@ -82,21 +92,34 @@ export async function AttendeeDashboard({ currentUser }: AttendeeDashboardProps)
       _count: { select: { registrations: true } },
     },
     orderBy: { eventDate: 'asc' },
-    take: 3,
+    take: 6,
+  });
+
+  // 5. Fetch attendee's submitted projects & judge evaluations (Item #21)
+  const submissions = await prisma.submission.findMany({
+    where: { userId: currentUser.id },
+    include: {
+      event: { include: { fest: true } },
+      scores: {
+        include: {
+          judge: { select: { id: true, name: true } },
+        },
+      },
+    },
+    orderBy: { updatedAt: 'desc' },
   });
 
   const confirmedPassesCount = registrations.filter((r) => r.status === 'CONFIRMED' || r.status === 'CHECKED_IN').length;
-  const teamsCount = registrations.filter((r) => r.team !== null).length;
   const openTicketsCount = tickets.filter((t) => t.status === 'OPEN' || t.status === 'IN_PROGRESS').length;
 
   return (
     <div className="w-full space-y-8">
-      {/* 1. Attendee Welcome Header */}
+      {/* 1. Header */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-zinc-200 dark:border-zinc-800 pb-6">
         <div>
           <div className="flex items-center gap-2 mb-1.5">
             <span className="text-[10px] font-mono uppercase tracking-wider font-bold px-2 py-0.5 rounded bg-violet-100 dark:bg-violet-950/80 text-violet-700 dark:text-violet-300 border border-violet-200 dark:border-violet-800">
-              Contestant Workspace
+              Contestant Discovery & Hub
             </span>
             <span className="text-xs text-zinc-500 font-mono">
               {currentUser.institution || 'DRMC Student'}
@@ -106,17 +129,17 @@ export async function AttendeeDashboard({ currentUser }: AttendeeDashboardProps)
             Welcome back, {currentUser.name.split(' ')[0]}
           </h1>
           <p className="text-xs sm:text-sm text-zinc-600 dark:text-zinc-400 mt-1">
-            Track your competition accreditation passes, submit project repositories, collaborate with teammates, and get direct organizer support.
+            Discover upcoming tech carnivals, explore competition tracks, and join national challenges.
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5 shrink-0">
           <Link
-            href="/events"
+            href="/my-registrations"
             className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-md text-xs font-semibold bg-violet-600 text-white hover:bg-violet-700 dark:hover:bg-violet-500 transition-colors shadow-xs"
           >
-            <Trophy className="h-3.5 w-3.5" />
-            Explore Competitions
+            <Ticket className="h-3.5 w-3.5" />
+            My Passes ({confirmedPassesCount})
           </Link>
           <Link
             href="/support"
@@ -128,331 +151,388 @@ export async function AttendeeDashboard({ currentUser }: AttendeeDashboardProps)
         </div>
       </div>
 
-      {/* 2. Operational Metrics for Attendee */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="p-4 rounded-lg bg-white dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-800 shadow-xs">
-          <div className="flex items-center justify-between text-zinc-500 mb-1">
-            <span className="text-[11px] font-mono uppercase">My Registrations</span>
-            <Ticket className="h-3.5 w-3.5 text-violet-500" />
-          </div>
-          <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{registrations.length}</p>
-          <p className="text-[10px] text-zinc-500 mt-0.5">Active competitive tracks</p>
-        </div>
-
-        <div className="p-4 rounded-lg bg-white dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-800 shadow-xs">
-          <div className="flex items-center justify-between text-zinc-500 mb-1">
-            <span className="text-[11px] font-mono uppercase">Valid QR Passes</span>
-            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-          </div>
-          <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{confirmedPassesCount}</p>
-          <p className="text-[10px] text-zinc-500 mt-0.5">Ready for gate accreditation</p>
-        </div>
-
-        <div className="p-4 rounded-lg bg-white dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-800 shadow-xs">
-          <div className="flex items-center justify-between text-zinc-500 mb-1">
-            <span className="text-[11px] font-mono uppercase">Team Rosters</span>
-            <Users className="h-3.5 w-3.5 text-zinc-400" />
-          </div>
-          <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{teamsCount}</p>
-          <p className="text-[10px] text-zinc-500 mt-0.5">Team events joined</p>
-        </div>
-
-        <div className="p-4 rounded-lg bg-white dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-800 shadow-xs">
-          <div className="flex items-center justify-between text-zinc-500 mb-1">
-            <span className="text-[11px] font-mono uppercase">Open Inquiries</span>
-            <HelpCircle className="h-3.5 w-3.5 text-zinc-400" />
-          </div>
-          <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{openTicketsCount}</p>
-          <p className="text-[10px] text-zinc-500 mt-0.5">Support tickets in progress</p>
-        </div>
-      </div>
-
-      {/* 3. My Active Passes & Passes Grid */}
-      <section className="space-y-4">
-        <div className="flex justify-between items-center">
-          <div>
-            <h2 className="text-base font-bold text-zinc-900 dark:text-zinc-100 tracking-tight flex items-center gap-2">
-              <Ticket className="h-4 w-4 text-violet-600 dark:text-violet-400" />
-              My Accreditation Passes & Event Status
-            </h2>
-            <p className="text-xs text-zinc-500 mt-0.5">
-              Present your digital QR pass at the venue entrance for instant camera scanning.
-            </p>
-          </div>
-          {registrations.length > 0 && (
+      {/* Active Submissions & Revision History Section (Item #21) */}
+      {submissions.length > 0 && (
+        <section className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-base font-bold text-zinc-900 dark:text-zinc-100 tracking-tight flex items-center gap-2">
+                <FileCheck className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+                My Contest Submissions & Evaluation Status
+              </h2>
+              <p className="text-xs text-zinc-500 mt-0.5">
+                Track your active contest entries, review past submissions, and submit revisions before deadlines.
+              </p>
+            </div>
             <Link
               href="/my-registrations"
               className="text-xs text-violet-600 dark:text-violet-400 hover:underline font-medium inline-flex items-center gap-1"
             >
-              View all passes ({registrations.length}) →
+              All Passes & Entries →
             </Link>
-          )}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {submissions.map((sub) => {
+              const latestScore = sub.scores[0];
+              const isDeadlinePassed = Boolean(
+                sub.event.registrationDeadline && new Date() > new Date(sub.event.registrationDeadline)
+              );
+
+              return (
+                <div
+                  key={sub.id}
+                  className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-5 space-y-3.5 shadow-xs flex flex-col justify-between"
+                >
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <span className="text-[10px] font-mono uppercase font-bold px-2 py-0.5 rounded bg-violet-100 dark:bg-violet-950 text-violet-700 dark:text-violet-300 border border-violet-200 dark:border-violet-800">
+                        {sub.event.title}
+                      </span>
+                      <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700">
+                        Rev #{sub.revisionNumber || 1}
+                      </span>
+                    </div>
+
+                    <h3 className="text-sm sm:text-base font-bold text-zinc-900 dark:text-zinc-100 leading-snug">
+                      {sub.title}
+                    </h3>
+
+                    {/* Review & Score Status */}
+                    <div>
+                      {latestScore ? (
+                        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+                          <Award className="h-3.5 w-3.5" />
+                          <span>Graded: {latestScore.totalScore} pts (Judge {latestScore.judge.name})</span>
+                        </div>
+                      ) : sub.claimedByJudgeId ? (
+                        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 text-xs font-medium text-amber-700 dark:text-amber-300">
+                          <Clock className="h-3.5 w-3.5" />
+                          <span>Under Active Judge Review</span>
+                        </div>
+                      ) : (
+                        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs font-medium text-zinc-600 dark:text-zinc-400">
+                          <Clock className="h-3.5 w-3.5" />
+                          <span>Submitted · Awaiting Evaluation</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Links */}
+                    <div className="flex flex-wrap items-center gap-3 pt-1 text-xs font-mono">
+                      {sub.repoUrl && (
+                        <a
+                          href={sub.repoUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="hover:text-violet-600 dark:hover:text-violet-400 text-zinc-600 dark:text-zinc-400 transition-colors"
+                        >
+                          Repository ↗
+                        </a>
+                      )}
+                      {sub.liveDemoUrl && (
+                        <a
+                          href={sub.liveDemoUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="hover:text-emerald-600 dark:hover:text-emerald-400 text-zinc-600 dark:text-zinc-400 transition-colors"
+                        >
+                          Live Demo ↗
+                        </a>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="pt-3 border-t border-zinc-100 dark:border-zinc-900 flex items-center justify-between text-xs">
+                    <span className="text-[11px] font-mono text-zinc-500">
+                      {isDeadlinePassed ? 'Revisions Closed' : 'Deadline Open'}
+                    </span>
+                    {!isDeadlinePassed ? (
+                      <Link
+                        href={`/events/${sub.event.slug}/submit`}
+                        className="inline-flex items-center gap-1 font-semibold text-violet-600 dark:text-violet-400 hover:underline"
+                      >
+                        <span>Update Project (Rev {(sub.revisionNumber || 1) + 1})</span>
+                        <ArrowRight className="h-3 w-3" />
+                      </Link>
+                    ) : (
+                      <Link
+                        href={`/events/${sub.event.slug}`}
+                        className="text-zinc-500 hover:underline"
+                      >
+                        View Contest
+                      </Link>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* 2. Available Competitions & Tracks (Showcased First) */}
+      <section className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-base font-bold text-zinc-900 dark:text-zinc-100 tracking-tight flex items-center gap-2">
+              <Trophy className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+              Available Competitions to Enter
+            </h2>
+            <p className="text-xs text-zinc-500 mt-0.5">
+              Select an individual track to view rules, rubrics, and reserve your spot.
+            </p>
+          </div>
+          <Link
+            href="/events"
+            className="text-xs text-violet-600 dark:text-violet-400 hover:underline font-medium inline-flex items-center gap-1"
+          >
+            Explore all tracks ({openCompetitions.length}) →
+          </Link>
         </div>
 
-        {registrations.length === 0 ? (
-          <div className="p-8 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/30 text-center space-y-3">
-            <Ticket className="h-8 w-8 text-zinc-400 mx-auto" />
-            <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">No active registrations yet</h3>
-            <p className="text-xs text-zinc-500 max-w-sm mx-auto">
-              Join the 9th DRMC International Tech Carnival 2026. Register for the flagship AI Web Contest or Hackathons now.
-            </p>
-            <div className="pt-2">
-              <Link
-                href="/events"
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-xs font-semibold bg-violet-600 text-white hover:bg-violet-700 transition-colors"
-              >
-                Browse Competitions & Register
-              </Link>
-            </div>
+        {openCompetitions.length === 0 ? (
+          <div className="p-8 text-center rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/30 text-xs text-zinc-500">
+            You are registered for all currently active competitions!
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {registrations.map((reg) => (
-              <div
-                key={reg.id}
-                className="flex flex-col justify-between p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-xs hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors space-y-4"
-              >
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-[10px] font-mono uppercase tracking-wider text-violet-600 dark:text-violet-400 font-bold px-2 py-0.5 rounded bg-violet-50 dark:bg-violet-950/70 border border-violet-200 dark:border-violet-800">
-                      {reg.event.category}
-                    </span>
-                    <StatusBadge status={reg.status} />
-                  </div>
+            {openCompetitions.map((event) => {
+              const registered = event._count.registrations;
+              const isFull = registered >= event.capacity;
+              const isDateUndecided = event.isDateUndecided || !event.eventDate;
 
-                  <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 leading-snug">
-                    {reg.event.title}
-                  </h3>
+              return (
+                <div
+                  key={event.id}
+                  className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-xs hover:border-zinc-300 dark:hover:border-zinc-700 transition-all flex flex-col justify-between overflow-hidden group"
+                >
+                  <div>
+                    {/* Top 16:9 Banner or Fallback Container */}
+                    <div className="relative w-full aspect-video bg-zinc-900 dark:bg-zinc-950 overflow-hidden">
+                      {event.bannerUrl ? (
+                        <Image
+                          src={event.bannerUrl}
+                          alt={event.title}
+                          fill
+                          className="object-cover object-center group-hover:scale-105 transition-transform duration-300"
+                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-zinc-800 via-zinc-900 to-zinc-950 p-4 relative overflow-hidden">
+                          <div className="absolute inset-0 bg-[radial-gradient(#ffffff0a_1px,transparent_1px)] [background-size:16px_16px]" />
+                          <CategoryIcon category={event.customCategory || event.category} className="h-9 w-9 text-zinc-500 group-hover:text-violet-400 transition-colors relative z-10" />
+                          <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-500 mt-2 relative z-10 font-semibold">
+                            {event.customCategory || event.category}
+                          </span>
+                        </div>
+                      )}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/30 pointer-events-none" />
 
-                  <div className="mt-2 space-y-1 text-xs text-zinc-500">
-                    <p className="flex items-center gap-1.5">
-                      <Calendar className="h-3.5 w-3.5 text-zinc-400" />
-                      <span>{formatDateTime(reg.event.eventDate)}</span>
-                    </p>
-                    <p className="flex items-center gap-1.5">
-                      <MapPin className="h-3.5 w-3.5 text-zinc-400" />
-                      <span>{reg.event.venue}</span>
-                    </p>
-                  </div>
-
-                  {reg.team && (
-                    <div className="mt-3 p-2.5 rounded-lg bg-zinc-50 dark:bg-zinc-900/60 border border-zinc-200/80 dark:border-zinc-800/80 text-xs space-y-1">
-                      <div className="flex items-center justify-between">
-                        <span className="font-semibold text-zinc-800 dark:text-zinc-200">{reg.team.name}</span>
-                        <span className="text-[10px] font-mono text-zinc-400">{reg.team.members.length} members</span>
-                      </div>
-                      <div className="flex items-center justify-between text-[11px] font-mono text-violet-600 dark:text-violet-400">
-                        <span>Invite Code:</span>
-                        <code className="px-1 py-0.5 rounded bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 font-bold">
-                          {reg.team.inviteCode}
-                        </code>
+                      {/* Top Badges */}
+                      <div className="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between gap-1.5 z-10">
+                        <span className="text-[10px] font-mono uppercase font-bold px-2 py-0.5 rounded bg-zinc-950/80 backdrop-blur-xs text-violet-300 border border-violet-800/80 shadow-xs truncate">
+                          {event.customCategory || event.category}
+                        </span>
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-zinc-950/80 backdrop-blur-xs text-zinc-400 border border-zinc-700/80 shrink-0">
+                          {event.isTeamEvent ? `Team (${event.minTeamSize}–${event.maxTeamSize})` : 'Individual'}
+                        </span>
                       </div>
                     </div>
-                  )}
+
+                    <div className="p-4 sm:p-5 space-y-2.5">
+                      <div>
+                        <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors line-clamp-1">
+                          <Link href={`/events/${event.slug}`}>
+                            {event.title}
+                          </Link>
+                        </h3>
+                        <p className="text-[11px] text-zinc-500 font-mono mt-0.5">
+                          Fest: {event.fest.title}
+                        </p>
+                      </div>
+
+                      <p className="text-xs text-zinc-600 dark:text-zinc-400 line-clamp-2 leading-relaxed">
+                        {event.description}
+                      </p>
+
+                      <div className="space-y-1 text-xs text-zinc-500 pt-1">
+                        <p className="flex items-center gap-1.5">
+                          <Calendar className="h-3.5 w-3.5 text-zinc-400" />
+                          <span>
+                            {isDateUndecided
+                              ? 'Schedule: TBA (Upcoming)'
+                              : formatDateTime(event.eventDate!)}
+                          </span>
+                        </p>
+                        {event.venue && (
+                          <p className="flex items-center gap-1.5">
+                            <MapPin className="h-3.5 w-3.5 text-zinc-400" />
+                            <span>{event.venue}</span>
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-4 sm:p-5 pt-0">
+                    <div className="pt-3 border-t border-zinc-100 dark:border-zinc-900 flex items-center justify-between text-xs">
+                      <span className="text-zinc-500 font-mono text-[11px]">
+                        {isFull ? (
+                          <span className="text-amber-500 font-medium">Waitlist Open</span>
+                        ) : (
+                          `${registered}/${event.capacity} spots`
+                        )}
+                      </span>
+
+                      <Link
+                        href={`/events/${event.slug}`}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-semibold bg-violet-600 text-white hover:bg-violet-700 transition-colors shadow-xs"
+                      >
+                        <span>View & Register</span>
+                        <ArrowRight className="h-3 w-3" />
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      {/* 3. Featured Carnivals & Festivals Section (Showcased Second) */}
+      <section className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-base font-bold text-zinc-900 dark:text-zinc-100 tracking-tight flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+              Active & Upcoming Carnivals
+            </h2>
+            <p className="text-xs text-zinc-500 mt-0.5">
+              Flagship science and technology festivals organized on campus.
+            </p>
+          </div>
+          <Link
+            href="/fests"
+            className="text-xs text-violet-600 dark:text-violet-400 hover:underline font-medium inline-flex items-center gap-1"
+          >
+            View all fests →
+          </Link>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {fests.map((fest) => {
+            const isOngoing = fest.status === 'ONGOING';
+            return (
+              <div
+                key={fest.id}
+                className="p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-xs hover:border-zinc-300 dark:hover:border-zinc-700 transition-all space-y-4 flex flex-col justify-between"
+              >
+                <div className="space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span
+                      className={`text-[10px] font-mono uppercase font-bold px-2 py-0.5 rounded border ${
+                        isOngoing
+                          ? 'bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                          : 'bg-zinc-100 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-800'
+                      }`}
+                    >
+                      {fest.status}
+                    </span>
+                    <span className="text-xs text-zinc-500 font-mono">
+                      {formatDateTime(fest.startDate).split(',')[0]}
+                    </span>
+                  </div>
+
+                  <h3 className="text-base font-bold text-zinc-900 dark:text-zinc-100">
+                    {fest.title}
+                  </h3>
+
+                  <p className="text-xs text-zinc-600 dark:text-zinc-400 line-clamp-2 leading-relaxed">
+                    {fest.description}
+                  </p>
+
+                  <div className="flex items-center gap-2 text-xs text-zinc-500 pt-1">
+                    <MapPin className="h-3.5 w-3.5 text-zinc-400" />
+                    <span>{fest.location}</span>
+                  </div>
                 </div>
 
-                <div className="pt-3 border-t border-zinc-100 dark:border-zinc-900 flex items-center justify-between">
-                  <span className="font-mono text-xs text-zinc-600 dark:text-zinc-400">
-                    {reg.ticketCode}
+                <div className="pt-3 border-t border-zinc-100 dark:border-zinc-900 flex items-center justify-between text-xs">
+                  <span className="text-zinc-500 font-mono">
+                    {fest._count.events} competition tracks
                   </span>
                   <Link
-                    href={`/tickets/${reg.ticketCode}`}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-violet-600 text-white hover:bg-violet-700 dark:hover:bg-violet-500 transition-colors shadow-xs"
+                    href={`/fests/${fest.slug}`}
+                    className="inline-flex items-center gap-1 font-semibold text-violet-600 dark:text-violet-400 hover:underline"
                   >
-                    View QR Pass
+                    <span>Browse Carnival</span>
                     <ArrowRight className="h-3 w-3" />
                   </Link>
                 </div>
               </div>
-            ))}
-          </div>
-        )}
+            );
+          })}
+        </div>
       </section>
 
-      {/* 4. Project Submission Hub & Status */}
-      <section className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-6 space-y-4 shadow-xs">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-zinc-200 dark:border-zinc-800 pb-4">
+      {/* 5. Support Inquiries Desk */}
+      <section className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-5 space-y-4 shadow-xs">
+        <div className="flex justify-between items-center border-b border-zinc-200 dark:border-zinc-800 pb-3">
           <div>
-            <h2 className="text-base font-bold text-zinc-900 dark:text-zinc-100 tracking-tight flex items-center gap-2">
-              <FileCheck className="h-4 w-4 text-violet-600 dark:text-violet-400" />
-              Project Submission Status
-            </h2>
+            <h3 className="font-bold text-zinc-900 dark:text-zinc-100 text-sm flex items-center gap-2">
+              <HelpCircle className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+              Contestant Help Desk & Organizer Support
+            </h3>
             <p className="text-xs text-zinc-500 mt-0.5">
-              Official contest submissions are evaluated by judges across the 120-pt rubric.
+              Have questions about rules, team formation, or equipment? Contact event staff directly.
             </p>
           </div>
-
           <Link
-            href="/events/ai-web-development-contest/submit"
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-xs font-semibold bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors"
+            href="/support"
+            className="text-xs text-violet-600 dark:text-violet-400 hover:underline font-medium inline-flex items-center gap-1"
           >
-            Submit / Update Project →
+            All tickets ({openTicketsCount}) →
           </Link>
         </div>
 
-        {submissions.length === 0 ? (
-          <div className="p-4 rounded-lg bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/50 text-xs space-y-2">
-            <div className="flex items-center gap-2 text-amber-800 dark:text-amber-300 font-semibold">
-              <AlertCircle className="h-4 w-4" />
-              <span>Pending Action: Submit your AI Web Contest Repository & Live URL</span>
-            </div>
-            <p className="text-amber-700/90 dark:text-amber-400/80 leading-relaxed text-[11px]">
-              If you have registered for the AI Web Development Contest, ensure you submit your GitHub repo and live working deployment link before the registration deadline to receive official judge evaluations.
-            </p>
-            <div className="pt-1">
-              <Link
-                href="/events/ai-web-development-contest/submit"
-                className="inline-flex items-center gap-1 text-xs font-semibold text-amber-900 dark:text-amber-200 underline"
-              >
-                Go to Project Submission Portal →
-              </Link>
-            </div>
+        {tickets.length === 0 ? (
+          <div className="p-6 text-center text-xs text-zinc-500 space-y-2">
+            <p>No active support tickets opened.</p>
+            <Link
+              href="/support"
+              className="inline-flex items-center gap-1 text-violet-600 dark:text-violet-400 font-medium hover:underline"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Open a support ticket
+            </Link>
           </div>
         ) : (
-          <div className="space-y-3">
-            {submissions.map((sub) => (
-              <div
-                key={sub.id}
-                className="p-4 rounded-lg border border-zinc-200 dark:border-zinc-800/80 bg-zinc-50 dark:bg-zinc-900/40 space-y-3 text-xs"
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {tickets.map((t) => (
+              <Link
+                key={t.id}
+                href={`/support/${t.id}`}
+                className="p-3.5 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/40 hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors block text-xs space-y-1.5"
               >
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-                  <div>
-                    <span className="font-semibold text-zinc-900 dark:text-zinc-100 text-sm">
-                      {sub.title}
-                    </span>
-                    <span className="text-zinc-400 font-mono text-[11px] ml-2">
-                      ({sub.event.title})
-                    </span>
-                  </div>
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                    <CheckCircle2 className="h-3 w-3" />
-                    Entry Received & Active
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-[10px] text-zinc-500">
+                    #TK-{t.ticketNumber}
                   </span>
+                  <StatusBadge status={t.status} />
                 </div>
-
-                <div className="flex flex-wrap items-center gap-4 text-xs font-mono">
-                  <a
-                    href={sub.repoUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1.5 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"
-                  >
-                    <GithubIcon className="h-3.5 w-3.5" />
-                    <span className="truncate max-w-xs">{sub.repoUrl}</span>
-                    <ExternalLink className="h-3 w-3" />
-                  </a>
-
-                  <a
-                    href={sub.liveDemoUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1.5 text-violet-600 dark:text-violet-400 hover:underline"
-                  >
-                    <ExternalLink className="h-3.5 w-3.5" />
-                    <span>Live Demo URL</span>
-                  </a>
-
-                  <span className="text-zinc-400 text-[11px]">
-                    Last updated: {formatDateTime(sub.submittedAt)}
-                  </span>
-                </div>
-              </div>
+                <p className="font-semibold text-zinc-900 dark:text-zinc-100 truncate">
+                  {t.subject}
+                </p>
+                <p className="text-[11px] text-zinc-500 truncate">
+                  Event: {t.event?.title || 'General Festival'}
+                </p>
+              </Link>
             ))}
           </div>
         )}
       </section>
-
-      {/* 5. Support Tickets & Other Events Split */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Support Help Desk snippet */}
-        <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-5 space-y-4 shadow-xs">
-          <div className="flex justify-between items-center border-b border-zinc-200 dark:border-zinc-800 pb-3">
-            <h3 className="font-bold text-zinc-900 dark:text-zinc-100 text-sm flex items-center gap-2">
-              <HelpCircle className="h-4 w-4 text-violet-600 dark:text-violet-400" />
-              Contestant Help Desk
-            </h3>
-            <Link
-              href="/support"
-              className="text-xs text-violet-600 dark:text-violet-400 hover:underline font-medium"
-            >
-              All tickets →
-            </Link>
-          </div>
-
-          {tickets.length === 0 ? (
-            <div className="p-6 text-center text-xs text-zinc-500 space-y-2">
-              <p>No support tickets opened.</p>
-              <Link
-                href="/support"
-                className="inline-flex items-center gap-1 text-violet-600 dark:text-violet-400 font-medium hover:underline"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                Open a support ticket
-              </Link>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {tickets.map((t) => (
-                <Link
-                  key={t.id}
-                  href={`/support/${t.id}`}
-                  className="p-3 rounded-lg border border-zinc-200 dark:border-zinc-800/80 bg-zinc-50 dark:bg-zinc-900/40 hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors flex items-center justify-between text-xs block"
-                >
-                  <div className="min-w-0 space-y-0.5">
-                    <p className="font-medium text-zinc-900 dark:text-zinc-100 truncate">
-                      {t.subject}
-                    </p>
-                    <p className="text-[10px] text-zinc-500 font-mono">
-                      #TK-{t.ticketNumber} · {t.event?.title || 'General'}
-                    </p>
-                  </div>
-                  <StatusBadge status={t.status} />
-                </Link>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Other Competitions to join */}
-        <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-5 space-y-4 shadow-xs">
-          <div className="flex justify-between items-center border-b border-zinc-200 dark:border-zinc-800 pb-3">
-            <h3 className="font-bold text-zinc-900 dark:text-zinc-100 text-sm flex items-center gap-2">
-              <Trophy className="h-4 w-4 text-violet-600 dark:text-violet-400" />
-              Explore More Competitions
-            </h3>
-            <Link
-              href="/events"
-              className="text-xs text-violet-600 dark:text-violet-400 hover:underline font-medium"
-            >
-              Browse all →
-            </Link>
-          </div>
-
-          <div className="space-y-2.5">
-            {otherEvents.map((ev) => (
-              <div
-                key={ev.id}
-                className="p-3 rounded-lg border border-zinc-200 dark:border-zinc-800/80 bg-zinc-50 dark:bg-zinc-900/40 flex items-center justify-between text-xs"
-              >
-                <div className="min-w-0 space-y-0.5">
-                  <p className="font-medium text-zinc-900 dark:text-zinc-100 truncate">
-                    {ev.title}
-                  </p>
-                  <p className="text-[10px] text-zinc-500 font-mono">
-                    {ev.category} · {formatCurrency(ev.fee)} · {ev._count.registrations}/{ev.capacity} spots
-                  </p>
-                </div>
-                <Link
-                  href={`/events/${ev.slug}/register`}
-                  className="shrink-0 px-2.5 py-1.5 rounded text-xs font-semibold bg-violet-600 text-white hover:bg-violet-700 transition-colors shadow-xs ml-3"
-                >
-                  Register
-                </Link>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
     </div>
   );
 }

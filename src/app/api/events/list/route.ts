@@ -36,7 +36,7 @@ export async function GET() {
       category: e.customCategory || e.category,
       isCompetitive: e.isCompetitive,
       venue: e.venue,
-      eventDate: e.eventDate.toISOString(),
+      eventDate: e.eventDate ? e.eventDate.toISOString() : null,
       capacity: e.capacity,
       registeredCount: e._count.registrations,
       festSlug: e.fest.slug,

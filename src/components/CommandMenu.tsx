@@ -46,7 +46,7 @@ export function CommandMenu({ isOpen, onClose, currentUser }: CommandMenuProps) 
     { title: 'Winter Tech Fest 2026', category: 'Fests', href: '/fests/winter-tech-fest-2026', icon: Calendar },
     { title: 'Freshers Tech Fest 2027', category: 'Fests', href: '/fests/freshers-tech-fest-2027', icon: Calendar },
     { title: 'Live Standings & Leaderboard', category: 'Leaderboards', href: '/leaderboards', icon: Trophy },
-    { title: 'My Registrations & Tickets', category: 'Attendee Portal', href: '/my-registrations', icon: Ticket, roles: ['ATTENDEE', 'ORGANIZER', 'ADMIN'] },
+    { title: 'My Registrations & Tickets', category: 'Attendee Portal', href: '/my-registrations', icon: Ticket, roles: ['ATTENDEE'] },
     { title: 'Contestant Help Desk', category: 'Support', href: '/support', icon: HelpCircle, roles: ['ATTENDEE', 'ORGANIZER', 'ADMIN'] },
     { title: 'Verify Digital Certificate', category: 'Verification', href: '/verify-certificate', icon: ShieldCheck },
     { title: 'Organizer Admin Dashboard', category: 'Management', href: '/admin', icon: Users, roles: ['ORGANIZER', 'ADMIN'] },

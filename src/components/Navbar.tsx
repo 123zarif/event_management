@@ -17,7 +17,6 @@ import {
 } from 'lucide-react';
 import { switchPersonaAction, logoutAction } from '@/actions/auth';
 import { ThemeToggle } from '@/components/ThemeToggle';
-import { EventSwitcher } from '@/components/EventSwitcher';
 import { FestSwitcher } from '@/components/FestSwitcher';
 
 interface NavbarProps {
@@ -81,10 +80,9 @@ export function Navbar({
             )}
           </button>
 
-          {/* Active Context: Festival Switcher & Track Switcher */}
+          {/* Active Context: Festival Context Switcher */}
           <div className="flex items-center gap-2">
             <FestSwitcher currentUser={currentUser} />
-            <EventSwitcher />
           </div>
         </div>
 
@@ -136,14 +134,16 @@ export function Navbar({
 
                   {/* Role Quick Links */}
                   <div className="space-y-0.5 border-b border-zinc-200 dark:border-zinc-800 pb-1.5 mb-1.5">
-                    <Link
-                      href="/my-registrations"
-                      onClick={() => setPersonaDropdownOpen(false)}
-                      className="flex items-center gap-2 px-2 py-1.5 rounded text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors"
-                    >
-                      <Ticket className="h-3.5 w-3.5 text-violet-500" />
-                      <span>My Registration Passes</span>
-                    </Link>
+                    {currentRole === 'ATTENDEE' && (
+                      <Link
+                        href="/my-registrations"
+                        onClick={() => setPersonaDropdownOpen(false)}
+                        className="flex items-center gap-2 px-2 py-1.5 rounded text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors"
+                      >
+                        <Ticket className="h-3.5 w-3.5 text-violet-500" />
+                        <span>My Registration Passes</span>
+                      </Link>
+                    )}
 
                     {currentRole === 'ORGANIZER' && (
                       <Link

@@ -26,11 +26,13 @@ export default async function AdminParticipantsPage({ searchParams }: Participan
     redirect('/');
   }
 
-  const { q, status, eventId } = await searchParams;
+  const { q, status = 'ACTIVE', eventId } = await searchParams;
 
   const whereClause: Record<string, unknown> = {};
 
-  if (status && status !== 'ALL') {
+  if (status === 'ACTIVE') {
+    whereClause.status = { not: 'CANCELLED' };
+  } else if (status && status !== 'ALL') {
     whereClause.status = status;
   }
 
@@ -145,14 +147,15 @@ export default async function AdminParticipantsPage({ searchParams }: Participan
 
           <select
             name="status"
-            defaultValue={status || 'ALL'}
+            defaultValue={status}
             className="px-2.5 py-1.5 rounded-md bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-300 text-xs outline-none"
           >
-            <option value="ALL">All Statuses</option>
-            <option value="CONFIRMED">Confirmed</option>
-            <option value="WAITLISTED">Waitlisted</option>
-            <option value="CHECKED_IN">Checked In</option>
-            <option value="CANCELLED">Cancelled</option>
+            <option value="ACTIVE">Active (Excludes Cancelled)</option>
+            <option value="ALL">All (Including Cancelled)</option>
+            <option value="CONFIRMED">Confirmed Only</option>
+            <option value="WAITLISTED">Waitlisted Only</option>
+            <option value="CHECKED_IN">Checked In Only</option>
+            <option value="CANCELLED">Cancelled Only</option>
           </select>
 
           <button

@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth';
 import { EventCard } from '@/components/EventCard';
 import { StatusBadge } from '@/components/StatusBadge';
-import { Calendar, MapPin, ArrowLeft, Plus, Trophy } from 'lucide-react';
+import { Calendar, MapPin, ArrowLeft, Plus, Trophy, Edit3 } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
@@ -65,13 +65,22 @@ export default async function FestDetailPage({ params }: FestDetailPageProps) {
           </div>
 
           {isOrganizer && (
-            <Link
-              href={`/admin/events/new?festId=${fest.id}`}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold bg-violet-600 hover:bg-violet-700 text-white transition-colors shadow-sm shrink-0"
-            >
-              <Plus className="h-4 w-4" />
-              <span>Add Competition / Track to this Festival</span>
-            </Link>
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
+              <Link
+                href={`/admin/fests/${fest.slug}/edit`}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors shadow-xs"
+              >
+                <Edit3 className="h-3.5 w-3.5 text-zinc-500" />
+                <span>Edit Festival</span>
+              </Link>
+              <Link
+                href={`/admin/events/new?festId=${fest.id}`}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold bg-violet-600 hover:bg-violet-700 text-white transition-colors shadow-xs"
+              >
+                <Plus className="h-4 w-4" />
+                <span>+ Add Competition Track</span>
+              </Link>
+            </div>
           )}
         </div>
 

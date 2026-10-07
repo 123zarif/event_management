@@ -81,17 +81,59 @@ body {
 
 /* Badge Print Sheet rules */
 @media print {
+  @page {
+    size: A4 portrait;
+    margin: 8mm;
+  }
+
+  html,
   body {
     background: #ffffff !important;
     color: #000000 !important;
+    font-size: 11pt;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    min-height: auto !important;
+    overflow: visible !important;
   }
-  .no-print {
+
+  /* Strip all platform chrome: navigation, headers, sidebars, subnavs, footers, command menu, toasts */
+  header,
+  aside,
+  nav,
+  footer,
+  .no-print,
+  [data-sonner-toaster],
+  [role="dialog"] {
     display: none !important;
   }
+
+  /* Reset layout flex/grid constraints for pure print page flow */
+  body > div,
+  body > div > div,
+  main {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
   .print-only {
     display: block !important;
   }
+
   .print-page {
     page-break-after: always;
+    break-after: page;
+  }
+
+  .print-badge-item {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
   }
 }

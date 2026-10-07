@@ -148,6 +148,7 @@ async function main() {
     data: {
       slug: 'ai-web-development-contest',
       title: 'AI Web Development Contest',
+      createdById: organizer.id,
       description: 'Theme: Smart Club Operations. Build a production-ready web platform eliminating Google Forms for student clubs with dynamic registration, ticketing, and live competition judging.',
       rules: '1. MIT License required. 2. Must be fully responsive across mobile, tablet, and desktop. 3. Working live deployment required for judges. 4. Pre-seeded demo data required.',
       category: EventCategory.HACKATHON,
@@ -166,6 +167,7 @@ async function main() {
         { id: 'deploy', label: 'Live Deployment URL', type: 'text', placeholder: 'https://...', required: true },
       ],
       isScoreboardFrozen: false,
+      bannerUrl: '/images/events/ai-web-development.png',
     },
   });
 
@@ -173,6 +175,7 @@ async function main() {
     data: {
       slug: 'national-programming-contest',
       title: 'National Collegiate Programming Contest',
+      createdById: organizer.id,
       description: 'ICPC-format algorithmic programming contest featuring 10 rigorous algorithmic challenges over 5 intense hours.',
       rules: 'ICPC scoring rules apply. 1 PC per team of 3 contestants. Internet access restricted to contest environment.',
       category: EventCategory.CONTEST,
@@ -185,7 +188,7 @@ async function main() {
       isTeamEvent: true,
       minTeamSize: 3,
       maxTeamSize: 3,
-      isScoreboardFrozen: true,
+      isScoreboardFrozen: false,
     },
   });
 
@@ -193,6 +196,7 @@ async function main() {
     data: {
       slug: 'autonomous-robotics-challenge',
       title: 'Autonomous Robotics Challenge (Line Follower & Maze)',
+      createdById: organizer.id,
       description: 'Precision robotics competition where autonomous rovers navigate dynamic obstacle grids and line mazes against the clock.',
       rules: 'Rover dimensions must not exceed 25cm x 25cm x 20cm. Max weight 2.5kg.',
       category: EventCategory.ROBOTICS,
@@ -213,6 +217,7 @@ async function main() {
     data: {
       slug: 'valorant-champions-cup',
       title: 'Valorant Champions Invitational',
+      createdById: organizer.id,
       description: '5v5 tactical shooter tournament on LAN. Single-elimination knockout bracket with live casting on arena projectors.',
       rules: 'Standard Riot competitive rulebook. Tournament bracket progression.',
       category: EventCategory.GAMING,

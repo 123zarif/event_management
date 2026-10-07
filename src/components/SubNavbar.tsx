@@ -58,9 +58,7 @@ export function SubNavbar({ currentUser }: SubNavbarProps) {
   } else if (currentRole === 'ORGANIZER' || currentRole === 'ADMIN') {
     tabs.push({ label: 'Organizer Ops', href: '/admin', icon: Shield, badge: 'Staff' });
     tabs.push({ label: 'QR Check-in', href: '/admin/scanner', icon: QrCode, badge: 'Live' });
-    tabs.push({ label: 'Judge Suite', href: '/judge', icon: Award });
     tabs.push({ label: 'Help Desk Queue', href: '/admin/support', icon: HelpCircle });
-    tabs.push({ label: 'My Passes', href: '/my-registrations', icon: Ticket });
   }
 
   // 5. Verifier (available to all)

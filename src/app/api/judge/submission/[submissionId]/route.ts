@@ -10,8 +10,11 @@ export async function GET(
     const { submissionId } = await params;
     const user = await getCurrentUser();
 
-    if (!user || (user.role !== 'JUDGE' && user.role !== 'ORGANIZER' && user.role !== 'ADMIN')) {
-      return NextResponse.json({ error: 'Unauthorized: Judge credentials required' }, { status: 403 });
+    if (!user || user.role !== 'JUDGE') {
+      return NextResponse.json(
+        { error: 'Unauthorized: Only certified Judges can access project evaluation data.' },
+        { status: 403 }
+      );
     }
 
     const submission = await prisma.submission.findUnique({
@@ -20,7 +23,13 @@ export async function GET(
         team: true,
         user: true,
         event: true,
-        scores: user ? { where: { judgeId: user.id } } : false,
+        scores: {
+          include: {
+            judge: {
+              select: { id: true, name: true, email: true },
+            },
+          },
+        },
       },
     });
 
@@ -28,24 +37,32 @@ export async function GET(
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
 
-    const myScore = submission.scores && submission.scores.length > 0 ? submission.scores[0] : null;
-
-    let isAssigned = false;
-    if (user.role === 'JUDGE') {
-      const assignment = await prisma.eventJudge.findUnique({
-        where: {
-          eventId_judgeId: {
-            eventId: submission.eventId,
-            judgeId: user.id,
-          },
-        },
+    let claimedByJudge = null;
+    if (submission.claimedByJudgeId) {
+      claimedByJudge = await prisma.user.findUnique({
+        where: { id: submission.claimedByJudgeId },
+        select: { id: true, name: true, email: true },
       });
-      isAssigned = !!assignment;
     }
+
+    const myScore = submission.scores.find((s) => s.judgeId === user.id) || null;
+    const existingOtherScore = submission.scores.find((s) => s.judgeId !== user.id) || null;
+
+    const assignment = await prisma.eventJudge.findUnique({
+      where: {
+        eventId_judgeId: {
+          eventId: submission.eventId,
+          judgeId: user.id,
+        },
+      },
+    });
+    const isAssigned = !!assignment;
 
     return NextResponse.json({
       ...submission,
+      claimedByJudge,
       myScore,
+      existingOtherScore,
       isAssigned,
     });
   } catch {

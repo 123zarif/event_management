@@ -64,8 +64,8 @@ export function Sidebar({ currentUser, collapsed, mobileOpen, onCloseMobile }: S
     ],
   });
 
-  // 2. Contestant Space (Visible to Attendee, Organizer, or authenticated user)
-  if (currentRole === 'ATTENDEE' || currentRole === 'ORGANIZER' || currentRole === 'ADMIN') {
+  // 2. Contestant Space (STRICTLY for ATTENDEE only)
+  if (currentRole === 'ATTENDEE') {
     navGroups.push({
       title: 'Contestant Space',
       items: [
@@ -84,7 +84,7 @@ export function Sidebar({ currentUser, collapsed, mobileOpen, onCloseMobile }: S
     });
   }
 
-  // 3. Judge Portal (Only for JUDGE, ORGANIZER, or ADMIN)
+  // 3. Judge Portal (STRICTLY for JUDGE only)
   if (currentRole === 'JUDGE') {
     navGroups.push({
       title: 'Judge Portal',
@@ -108,7 +108,7 @@ export function Sidebar({ currentUser, collapsed, mobileOpen, onCloseMobile }: S
         { label: 'QR Gate Scanner', href: '/admin/scanner', icon: QrCode, badge: 'Live' },
         { label: 'Support Queue', href: '/admin/support', icon: LifeBuoy },
         { label: 'Security Audit Log', href: '/admin/audit-logs', icon: History },
-        { label: 'Audit Judge Scores', href: '/judge', icon: Award, badge: 'Audit' },
+        { label: 'Verify Certificate', href: '/verify-certificate', icon: ShieldCheck },
       ],
     });
   }

@@ -21,7 +21,9 @@ import {
   Trophy,
   Calendar,
   Tag,
-  X
+  X,
+  Award,
+  Image as ImageIcon
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -76,9 +78,11 @@ export function CreateEventForm({
   const [autoSlug, setAutoSlug] = useState(true);
   const [category, setCategory] = useState<EventCategory>(EventCategory.CONTEST);
   const [description, setDescription] = useState('');
-  const [venue, setVenue] = useState('DRMC Computing Labs & Auditorium');
-  const [eventDate, setEventDate] = useState('2026-10-09T18:00');
-  const [registrationDeadline, setRegistrationDeadline] = useState('2026-10-09T12:00');
+  const [venue, setVenue] = useState('');
+  const [isDateUndecided, setIsDateUndecided] = useState(false);
+  const [hasSpecificTime, setHasSpecificTime] = useState(true);
+  const [eventDate, setEventDate] = useState('2026-10-15T10:00');
+  const [registrationDeadline, setRegistrationDeadline] = useState('2026-10-14T23:59');
   const [capacity, setCapacity] = useState(50);
   const [fee, setFee] = useState(0);
 
@@ -90,10 +94,18 @@ export function CreateEventForm({
   // PDF Rulebook State
   const [rulebookFile, setRulebookFile] = useState<File | null>(null);
   const [rulebookUrl, setRulebookUrl] = useState('');
+  const [isRulebookPublished, setIsRulebookPublished] = useState(true);
   const [uploadingPdf, setUploadingPdf] = useState(false);
   const [pdfError, setPdfError] = useState('');
 
+  // Banner Artwork State
+  const [bannerFile, setBannerFile] = useState<File | null>(null);
+  const [bannerUrl, setBannerUrl] = useState('');
+  const [uploadingBanner, setUploadingBanner] = useState(false);
+  const [bannerError, setBannerError] = useState('');
+
   // Judging Criteria Rubric Builder
+  const [isJudgingPublished, setIsJudgingPublished] = useState(true);
   const [criteria, setCriteria] = useState<JudgingCriterionInput[]>([
     { id: 'c1', name: 'UI/UX Polish & Visual Hierarchy', maxScore: 30, description: 'Clean layout, typography, edge-to-edge desktop & responsive mobile design' },
     { id: 'c2', name: 'System Architecture & Concurrency', maxScore: 30, description: 'PostgreSQL transactions, Redis waitlists, and concurrency safety' },
@@ -174,6 +186,62 @@ export function CreateEventForm({
     setRulebookFile(null);
     setRulebookUrl('');
     setPdfError('');
+  };
+
+  // Banner File Selection and Upload
+  const handleBannerSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setBannerError('');
+
+    const validExts = ['.png', '.jpg', '.jpeg', '.webp'];
+    const lowerName = file.name.toLowerCase();
+    if (!validExts.some((ext) => lowerName.endsWith(ext))) {
+      setBannerError('Invalid format: Only PNG, JPEG, and WebP images are permitted.');
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      setBannerError('File size exceeds 10 MB limit.');
+      return;
+    }
+
+    setBannerFile(file);
+    setUploadingBanner(true);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('eventSlug', slug || 'banner');
+
+      const res = await fetch('/api/admin/upload-banner', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Failed to upload banner image.');
+      }
+
+      setBannerUrl(data.url);
+      toast.success('Contest banner image uploaded successfully!');
+    } catch (err: unknown) {
+      const error = err as Error;
+      setBannerError(error.message || 'Upload failed.');
+      setBannerFile(null);
+      toast.error(error.message || 'Banner upload failed.');
+    } finally {
+      setUploadingBanner(false);
+    }
+  };
+
+  const removeBanner = () => {
+    setBannerFile(null);
+    setBannerUrl('');
+    setBannerError('');
   };
 
   // Criteria Management
@@ -290,15 +358,20 @@ export function CreateEventForm({
         customCategory: selectedCatObj?.name || undefined,
         isCompetitive,
         description: description.trim(),
-        venue: venue.trim(),
-        eventDate,
-        registrationDeadline,
+        venue: venue.trim() ? venue.trim() : undefined,
+        isDateUndecided,
+        hasSpecificTime,
+        eventDate: isDateUndecided ? undefined : (hasSpecificTime ? eventDate : `${eventDate}T00:00:00`),
+        registrationDeadline: isDateUndecided ? undefined : (hasSpecificTime ? registrationDeadline : `${registrationDeadline}T23:59:59`),
+        isRulebookPublished,
+        isJudgingPublished,
         capacity: Number(capacity) || 50,
         fee: Number(fee) || 0,
         isTeamEvent,
         minTeamSize: isTeamEvent ? Number(minTeamSize) : 1,
         maxTeamSize: isTeamEvent ? Number(maxTeamSize) : 1,
         rulebookUrl: isCompetitive ? (rulebookUrl || undefined) : undefined,
+        bannerUrl: bannerUrl || undefined,
         judgingCriteria: isCompetitive ? criteria : undefined,
       });
 
@@ -564,15 +637,17 @@ export function CreateEventForm({
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">
-                  Venue & Room *
-                </label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                    Venue / Campus Location
+                  </label>
+                  <span className="text-[10px] text-zinc-500 font-mono">Optional · TBA if blank</span>
+                </div>
                 <input
                   type="text"
                   value={venue}
                   onChange={(e) => setVenue(e.target.value)}
-                  placeholder="e.g., DRMC Central Arena / Lab 3"
-                  required
+                  placeholder="e.g., Auditorium Hall 2 / Online (leave blank if undecided)"
                   className="w-full px-3 py-2 rounded-md bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs text-zinc-900 dark:text-zinc-100 focus:border-violet-600 outline-none"
                 />
               </div>
@@ -589,6 +664,75 @@ export function CreateEventForm({
                 placeholder="Brief summary of the competition track, problem statements, and requirements..."
                 className="w-full px-3 py-2 rounded-md bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs text-zinc-900 dark:text-zinc-100 focus:border-violet-600 outline-none leading-relaxed"
               />
+            </div>
+
+            {/* Banner Artwork Upload Dropzone */}
+            <div className="space-y-2 pt-2 border-t border-zinc-100 dark:border-zinc-900">
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 flex items-center gap-1.5">
+                  <ImageIcon className="h-3.5 w-3.5 text-violet-600 dark:text-violet-400" />
+                  <span>Contest Banner Artwork / Poster (Optional)</span>
+                </label>
+                <span className="text-[10px] text-zinc-500 font-mono">PNG, JPG, WEBP (Max 10MB)</span>
+              </div>
+
+              {!bannerUrl ? (
+                <div>
+                  <label className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-zinc-200 dark:border-zinc-800 hover:border-violet-500/80 rounded-xl cursor-pointer bg-zinc-50/50 dark:bg-zinc-950/40 transition-colors group">
+                    <div className="w-10 h-10 rounded-full bg-violet-50 dark:bg-violet-950/60 text-violet-600 dark:text-violet-400 flex items-center justify-center mb-2 group-hover:scale-105 transition-transform">
+                      {uploadingBanner ? (
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                      ) : (
+                        <UploadCloud className="w-5 h-5" />
+                      )}
+                    </div>
+                    <p className="text-xs font-semibold text-zinc-800 dark:text-zinc-200">
+                      {uploadingBanner ? 'Verifying and uploading banner...' : 'Click to select or drag and drop contest banner'}
+                    </p>
+                    <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+                      Standard 16:9 banner artwork displayed on contest cards, leaderboards, and contest hub.
+                    </p>
+                    <input
+                      type="file"
+                      accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp"
+                      onChange={handleBannerSelect}
+                      disabled={uploadingBanner}
+                      className="hidden"
+                    />
+                  </label>
+                  {bannerError && (
+                    <p className="text-xs text-rose-600 dark:text-rose-400 mt-2 flex items-center gap-1.5">
+                      <AlertCircle className="h-3.5 w-3.5" />
+                      {bannerError}
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <div className="rounded-xl overflow-hidden border border-zinc-200 dark:border-zinc-800 bg-zinc-950 shadow-xs">
+                  <div className="relative aspect-video w-full max-h-56 overflow-hidden">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={bannerUrl}
+                      alt="Banner Preview"
+                      className="w-full h-full object-cover object-center"
+                    />
+                  </div>
+                  <div className="p-3 bg-white dark:bg-zinc-900 border-t border-zinc-200 dark:border-zinc-800 flex items-center justify-between text-xs">
+                    <span className="text-[11px] font-mono text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                      Banner Attached ({bannerFile?.name || 'Custom Graphic'})
+                    </span>
+                    <button
+                      type="button"
+                      onClick={removeBanner}
+                      className="text-xs text-rose-600 hover:text-rose-700 dark:text-rose-400 flex items-center gap-1 font-medium cursor-pointer"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -681,6 +825,26 @@ export function CreateEventForm({
                     </div>
                   </div>
                 )}
+
+                {/* Rulebook Publishing Toggle */}
+                {rulebookUrl && (
+                  <div className="pt-2 border-t border-zinc-200 dark:border-zinc-800">
+                    <label className="flex items-center gap-2 text-xs cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={isRulebookPublished}
+                        onChange={(e) => setIsRulebookPublished(e.target.checked)}
+                        className="rounded border-zinc-300 dark:border-zinc-700 text-violet-600 focus:ring-violet-500"
+                      />
+                      <span className="font-medium text-zinc-800 dark:text-zinc-200">
+                        Publish Rulebook Immediately (visible to attendees on competition page)
+                      </span>
+                    </label>
+                    <p className="text-[11px] text-zinc-500 ml-5 mt-0.5">
+                      Uncheck to save as draft. You can publish or replace the rulebook document anytime later.
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Section 3: Dynamic Judging Criteria & Rubric Builder */}
@@ -696,8 +860,19 @@ export function CreateEventForm({
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[11px] text-zinc-500">Presets:</span>
+                  <div className="flex items-center gap-3">
+                    <label className="flex items-center gap-2 text-xs cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={isJudgingPublished}
+                        onChange={(e) => setIsJudgingPublished(e.target.checked)}
+                        className="rounded border-zinc-300 dark:border-zinc-700 text-violet-600 focus:ring-violet-500"
+                      />
+                      <span className="text-zinc-700 dark:text-zinc-300 font-medium">Publish Rubric</span>
+                    </label>
+
+                    <div className="flex items-center gap-1.5 border-l border-zinc-200 dark:border-zinc-800 pl-3">
+                      <span className="text-[11px] text-zinc-500">Presets:</span>
                     <button
                       type="button"
                       onClick={() => applyPreset('120pt')}
@@ -721,6 +896,7 @@ export function CreateEventForm({
                     </button>
                   </div>
                 </div>
+              </div>
 
                 {/* Criteria List */}
                 <div className="space-y-3">
@@ -787,6 +963,19 @@ export function CreateEventForm({
                   </div>
                 </div>
               </div>
+
+              {/* Judge Roster Assignment Guidance */}
+              <div className="p-4 rounded-xl bg-violet-50/60 dark:bg-violet-950/20 border border-violet-200 dark:border-violet-900/60 text-xs flex items-start gap-3">
+                <Award className="h-5 w-5 text-violet-600 dark:text-violet-400 shrink-0 mt-0.5" />
+                <div className="space-y-0.5">
+                  <p className="font-semibold text-zinc-900 dark:text-zinc-100">
+                    Judge Roster Assignment Available Anytime Later
+                  </p>
+                  <p className="text-zinc-600 dark:text-zinc-400 leading-relaxed">
+                    You do not need to assign judges now. Once this competition track is created, organizers can assign, add, or remove certified judges anytime via the dedicated <strong>Judge Roster Management</strong> portal.
+                  </p>
+                </div>
+              </div>
             </>
           ) : (
             <div className="p-5 rounded-xl bg-white dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-800 space-y-3 text-xs shadow-xs">
@@ -814,32 +1003,69 @@ export function CreateEventForm({
               Schedule & Quotas
             </h3>
 
-            <div className="space-y-3 text-xs">
-              <div>
-                <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
-                  Event Date & Start Time *
+            <div className="space-y-4 text-xs">
+              {/* Timing Options */}
+              <div className="p-3 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/60 space-y-2">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={isDateUndecided}
+                    onChange={(e) => setIsDateUndecided(e.target.checked)}
+                    className="rounded border-zinc-300 dark:border-zinc-700 text-violet-600 focus:ring-violet-500"
+                  />
+                  <span className="font-semibold text-zinc-800 dark:text-zinc-200">
+                    Date & Time Undecided (TBA / Upcoming)
+                  </span>
                 </label>
-                <input
-                  type="datetime-local"
-                  value={eventDate}
-                  onChange={(e) => setEventDate(e.target.value)}
-                  required
-                  className="w-full px-3 py-2 rounded-md bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs text-zinc-900 dark:text-zinc-100 focus:border-violet-600 outline-none"
-                />
+
+                {!isDateUndecided && (
+                  <label className="flex items-center gap-2 cursor-pointer pt-1 border-t border-zinc-200 dark:border-zinc-800">
+                    <input
+                      type="checkbox"
+                      checked={hasSpecificTime}
+                      onChange={(e) => setHasSpecificTime(e.target.checked)}
+                      className="rounded border-zinc-300 dark:border-zinc-700 text-violet-600 focus:ring-violet-500"
+                    />
+                    <span className="text-zinc-600 dark:text-zinc-400">
+                      Include Specific Time (Uncheck for Date Only / All-Day)
+                    </span>
+                  </label>
+                )}
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
-                  Registration Deadline *
-                </label>
-                <input
-                  type="datetime-local"
-                  value={registrationDeadline}
-                  onChange={(e) => setRegistrationDeadline(e.target.value)}
-                  required
-                  className="w-full px-3 py-2 rounded-md bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs text-zinc-900 dark:text-zinc-100 focus:border-violet-600 outline-none"
-                />
-              </div>
+              {isDateUndecided ? (
+                <div className="p-3 rounded-lg border border-amber-200 dark:border-amber-900/60 bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-300 text-xs">
+                  📅 Event will be marked as <strong>Upcoming / Schedule TBA</strong>. You can announce the exact date and deadline whenever finalized.
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
+                      Event Date {hasSpecificTime ? '& Start Time' : '(All-Day)'} *
+                    </label>
+                    <input
+                      type={hasSpecificTime ? 'datetime-local' : 'date'}
+                      value={hasSpecificTime ? eventDate : eventDate.split('T')[0]}
+                      onChange={(e) => setEventDate(e.target.value)}
+                      required={!isDateUndecided}
+                      className="w-full px-3 py-2 rounded-md bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs text-zinc-900 dark:text-zinc-100 focus:border-violet-600 outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
+                      Registration Deadline {hasSpecificTime ? '& Time' : '(Date)'} *
+                    </label>
+                    <input
+                      type={hasSpecificTime ? 'datetime-local' : 'date'}
+                      value={hasSpecificTime ? registrationDeadline : registrationDeadline.split('T')[0]}
+                      onChange={(e) => setRegistrationDeadline(e.target.value)}
+                      required={!isDateUndecided}
+                      className="w-full px-3 py-2 rounded-md bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs text-zinc-900 dark:text-zinc-100 focus:border-violet-600 outline-none"
+                    />
+                  </div>
+                </>
+              )}
 
               <div className="grid grid-cols-2 gap-3">
                 <div>

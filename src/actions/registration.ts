@@ -21,6 +21,15 @@ export async function registerForEvent(
   }
 ): Promise<RegisterResult> {
   try {
+    // 0. Prohibit Organizers and Admins from registering
+    const caller = await prisma.user.findUnique({ where: { id: userId } });
+    if (caller && (caller.role === 'ORGANIZER' || caller.role === 'ADMIN')) {
+      return { 
+        success: false, 
+        message: 'Access Denied: Organizers and Administrators cannot register as event participants to ensure fair play.' 
+      };
+    }
+
     // 1. Fetch event
     const event = await prisma.event.findUnique({
       where: { id: eventId },
@@ -32,7 +41,7 @@ export async function registerForEvent(
     }
 
     // 2. Check registration deadline
-    if (new Date() > new Date(event.registrationDeadline)) {
+    if (event.registrationDeadline && new Date() > new Date(event.registrationDeadline)) {
       return { success: false, message: 'Registration deadline has passed' };
     }
 
@@ -325,7 +334,7 @@ export async function registerForMultipleEvents(
 
     for (const event of events) {
       // 1. Deadline check
-      if (now > new Date(event.registrationDeadline)) {
+      if (event.registrationDeadline && now > new Date(event.registrationDeadline)) {
         skipped.push({
           eventId: event.id,
           eventTitle: event.title,

@@ -4,10 +4,8 @@ import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth';
 import { ScoreboardFreezeBanner } from '@/components/ScoreboardFreezeBanner';
-import { toggleScoreboardFreeze } from '@/actions/competitions';
-import { Trophy, ArrowLeft, ExternalLink } from 'lucide-react';
+import { Trophy, ArrowLeft, ExternalLink, UserCheck } from 'lucide-react';
 import { GithubIcon } from '@/components/Icons';
-import { revalidatePath } from 'next/cache';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,7 +25,13 @@ export default async function LeaderboardPage({ params }: LeaderboardPageProps) 
         include: {
           team: true,
           user: true,
-          scores: true,
+          scores: {
+            include: {
+              judge: {
+                select: { id: true, name: true, email: true },
+              },
+            },
+          },
         },
       },
     },
@@ -35,6 +39,24 @@ export default async function LeaderboardPage({ params }: LeaderboardPageProps) 
 
   if (!event) {
     notFound();
+  }
+
+  // Check if current user can freeze / unfreeze
+  let canManageFreeze = false;
+  if (user) {
+    if (user.role === 'ORGANIZER' || user.role === 'ADMIN') {
+      canManageFreeze = true;
+    } else if (user.role === 'JUDGE') {
+      const assignment = await prisma.eventJudge.findUnique({
+        where: {
+          eventId_judgeId: {
+            eventId: event.id,
+            judgeId: user.id,
+          },
+        },
+      });
+      canManageFreeze = !!assignment;
+    }
   }
 
   // Tally and rank submissions by total average score
@@ -46,16 +68,10 @@ export default async function LeaderboardPage({ params }: LeaderboardPageProps) 
         ...sub,
         avgScore: Math.round(avgScore * 10) / 10,
         judgeCount: sub.scores.length,
+        judges: sub.scores.map((s) => s.judge),
       };
     })
     .sort((a, b) => b.avgScore - a.avgScore);
-
-  async function handleToggleFreeze() {
-    'use server';
-    if (!event) return;
-    await toggleScoreboardFreeze(event.id, !event.isScoreboardFrozen);
-    revalidatePath(`/events/${event.slug}/leaderboard`);
-  }
 
   return (
     <div className="w-full space-y-6">
@@ -67,7 +83,7 @@ export default async function LeaderboardPage({ params }: LeaderboardPageProps) 
             className="inline-flex items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 transition-colors mb-2"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
-            Back to Event Hub
+            Back to Competition Hub
           </Link>
           <div className="flex items-center gap-2">
             <Trophy className="h-5 w-5 text-violet-600 dark:text-violet-400" />
@@ -76,29 +92,27 @@ export default async function LeaderboardPage({ params }: LeaderboardPageProps) 
             </h1>
           </div>
           <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-1">
-            Real-time ranked scoreboard evaluated across UI/UX (30), Registration (30), Organizer Ops (30), and Bonus (30).
+            Real-time verified scoreboard evaluated across official rubric dimensions.
           </p>
         </div>
 
         {user?.role === 'JUDGE' && (
           <Link
             href="/judge"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-violet-600 text-white hover:bg-violet-700 dark:hover:bg-violet-500 transition-colors shadow-sm"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-violet-600 text-white hover:bg-violet-700 dark:hover:bg-violet-500 transition-colors shadow-xs"
           >
-            <span>Judge Scoring Panel</span>
+            <span>Judge Evaluation Console</span>
             <ExternalLink className="h-3.5 w-3.5" />
           </Link>
         )}
       </div>
 
-      {/* Freeze Banner */}
-      <form action={handleToggleFreeze}>
-        <ScoreboardFreezeBanner
-          isFrozen={event.isScoreboardFrozen}
-          role={user?.role}
-          onToggleFreeze={undefined}
-        />
-      </form>
+      {/* Freeze Banner with interactive toggle for Organizers & Assigned Judges */}
+      <ScoreboardFreezeBanner
+        eventId={event.id}
+        isFrozen={event.isScoreboardFrozen}
+        canManageFreeze={canManageFreeze}
+      />
 
       {/* Standings Table */}
       <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 overflow-hidden shadow-xs">
@@ -110,8 +124,8 @@ export default async function LeaderboardPage({ params }: LeaderboardPageProps) 
                 <th className="py-3 px-4">Contestant / Team</th>
                 <th className="py-3 px-4">Project Title</th>
                 <th className="py-3 px-4">Links</th>
-                <th className="py-3 px-4 text-center">Judged By</th>
-                <th className="py-3 px-4 text-right">Score (Max 120)</th>
+                <th className="py-3 px-4">Evaluated By</th>
+                <th className="py-3 px-4 text-right">Score</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-200 dark:divide-zinc-900">
@@ -185,15 +199,32 @@ export default async function LeaderboardPage({ params }: LeaderboardPageProps) 
                         </div>
                       </td>
 
-                      <td className="py-3 px-4 text-center font-mono text-zinc-600 dark:text-zinc-400">
-                        {sub.judgeCount} {sub.judgeCount === 1 ? 'Judge' : 'Judges'}
+                      {/* Evaluated By Judge attribution */}
+                      <td className="py-3 px-4">
+                        {sub.judges.length > 0 ? (
+                          <div className="flex flex-col gap-0.5">
+                            {sub.judges.map((j) => (
+                              <span
+                                key={j.id}
+                                className="inline-flex items-center gap-1 text-[11px] font-mono text-zinc-700 dark:text-zinc-300"
+                              >
+                                <UserCheck className="h-3 w-3 text-violet-600 dark:text-violet-400 shrink-0" />
+                                <span>Judge {j.name}</span>
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-zinc-400 italic text-[11px]">
+                            Pending Score
+                          </span>
+                        )}
                       </td>
 
                       <td className="py-3 px-4 text-right">
                         <span className="text-sm font-bold font-mono text-violet-600 dark:text-violet-400">
                           {sub.avgScore}
                         </span>
-                        <span className="text-zinc-400 dark:text-zinc-500 text-[10px] font-mono"> / 120</span>
+                        <span className="text-zinc-400 dark:text-zinc-500 text-[10px] font-mono"> pts</span>
                       </td>
                     </tr>
                   );

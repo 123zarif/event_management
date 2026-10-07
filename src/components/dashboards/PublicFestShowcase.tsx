@@ -1,5 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { prisma } from '@/lib/prisma';
 import { EventCard } from '@/components/EventCard';
 import { 
@@ -204,10 +205,24 @@ export async function PublicFestShowcase() {
             </div>
 
             <div className="space-y-3 p-4 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950">
+              {featuredContest.bannerUrl && (
+                <div className="relative w-full aspect-video rounded-md overflow-hidden border border-zinc-200 dark:border-zinc-800 bg-zinc-950">
+                  <Image
+                    src={featuredContest.bannerUrl}
+                    alt={featuredContest.title}
+                    fill
+                    className="object-cover object-center"
+                    sizes="(max-width: 1024px) 100vw, 33vw"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent pointer-events-none" />
+                </div>
+              )}
               <div>
                 <p className="text-[10px] uppercase font-mono text-zinc-500">Submission Deadline</p>
                 <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-200">
-                  {formatDateTime(featuredContest.registrationDeadline)}
+                  {featuredContest.registrationDeadline
+                    ? formatDateTime(featuredContest.registrationDeadline)
+                    : 'Date TBA'}
                 </p>
               </div>
               <div>

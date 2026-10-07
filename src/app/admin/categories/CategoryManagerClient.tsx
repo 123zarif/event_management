@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { createCategory, deleteCategory } from '@/actions/categories';
+import { createCategory, deleteCategory, updateCategory } from '@/actions/categories';
 import { 
   ArrowLeft, 
   FolderPlus, 
@@ -10,7 +10,8 @@ import {
   Trash2, 
   Plus, 
   CheckCircle2, 
-  Loader2
+  Loader2,
+  Pencil
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -31,10 +32,20 @@ interface CategoryManagerClientProps {
 export function CategoryManagerClient({ initialCategories }: CategoryManagerClientProps) {
   const [categories, setCategories] = useState(initialCategories);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<CategoryItem | null>(null);
+
+  // Form states for Create
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
   const [description, setDescription] = useState('');
   const [color, setColor] = useState('violet');
+
+  // Form states for Edit
+  const [editName, setEditName] = useState('');
+  const [editSlug, setEditSlug] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editColor, setEditColor] = useState('violet');
+
   const [loading, setLoading] = useState(false);
 
   const handleNameChange = (val: string) => {
@@ -119,6 +130,72 @@ export function CategoryManagerClient({ initialCategories }: CategoryManagerClie
     }
   };
 
+  const openEditModal = (cat: CategoryItem) => {
+    setEditingCategory(cat);
+    setEditName(cat.name);
+    setEditSlug(cat.slug);
+    setEditDescription(cat.description || '');
+    setEditColor(cat.color || 'violet');
+  };
+
+  const handleEditNameChange = (val: string) => {
+    setEditName(val);
+    const autoSlug = val
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+    setEditSlug(autoSlug);
+  };
+
+  const handleUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingCategory) return;
+    if (!editName.trim()) {
+      toast.error('Please enter a category name.');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const res = await updateCategory(editingCategory.id, {
+        name: editName.trim(),
+        slug: editSlug.trim(),
+        description: editDescription.trim(),
+        color: editColor,
+      });
+
+      if (!res.success || !res.category) {
+        toast.error(res.message);
+        setLoading(false);
+        return;
+      }
+
+      toast.success(res.message);
+      setCategories((prev) =>
+        prev.map((c) =>
+          c.id === editingCategory.id
+            ? {
+                ...c,
+                name: res.category.name,
+                slug: res.category.slug,
+                description: res.category.description,
+                color: res.category.color,
+              }
+            : c
+        )
+      );
+
+      setEditingCategory(null);
+    } catch (err: unknown) {
+      const error = err as Error;
+      toast.error(error.message || 'Failed to update category.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="w-full space-y-6">
       {/* Header */}
@@ -189,18 +266,31 @@ export function CategoryManagerClient({ initialCategories }: CategoryManagerClie
                 View Events →
               </Link>
 
-              {cat.eventCount === 0 ? (
+              <div className="flex items-center gap-1.5">
                 <button
-                  onClick={() => handleDelete(cat.id, cat.name)}
+                  type="button"
+                  onClick={() => openEditModal(cat)}
                   disabled={loading}
-                  className="p-1 text-zinc-400 hover:text-rose-500 transition-colors"
-                  title="Delete unused category"
+                  className="p-1 text-zinc-400 hover:text-violet-600 dark:hover:text-violet-400 transition-colors cursor-pointer"
+                  title="Edit category"
                 >
-                  <Trash2 className="h-4 w-4" />
+                  <Pencil className="h-3.5 w-3.5" />
                 </button>
-              ) : (
-                <span className="text-[10px] text-zinc-400 font-mono">Linked</span>
-              )}
+
+                {cat.eventCount === 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(cat.id, cat.name)}
+                    disabled={loading}
+                    className="p-1 text-zinc-400 hover:text-rose-500 transition-colors cursor-pointer"
+                    title="Delete unused category"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                ) : (
+                  <span className="text-[10px] text-zinc-400 font-mono">Linked</span>
+                )}
+              </div>
             </div>
           </div>
         ))}
@@ -307,6 +397,116 @@ export function CategoryManagerClient({ initialCategories }: CategoryManagerClie
                     <>
                       <CheckCircle2 className="h-3.5 w-3.5" />
                       <span>Create Category</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Modal (Item 37) */}
+      {editingCategory && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/80 backdrop-blur-xs p-4">
+          <div className="w-full max-w-md rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-6 space-y-5 shadow-2xl text-xs">
+            <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-3">
+              <div className="flex items-center gap-2">
+                <Pencil className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+                <h3 className="text-base font-bold text-zinc-900 dark:text-zinc-100">
+                  Edit Category: {editingCategory.name}
+                </h3>
+              </div>
+              <button
+                onClick={() => setEditingCategory(null)}
+                className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 text-base"
+              >
+                &times;
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdate} className="space-y-4">
+              <div>
+                <label className="block text-zinc-700 dark:text-zinc-300 font-semibold mb-1">
+                  Category Name *
+                </label>
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={(e) => handleEditNameChange(e.target.value)}
+                  placeholder="e.g. Cybersecurity & CTF"
+                  required
+                  className="w-full px-3 py-2 rounded-md bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 text-xs text-zinc-900 dark:text-zinc-100 focus:border-violet-600 outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-zinc-700 dark:text-zinc-300 font-semibold mb-1">
+                  URL Slug *
+                </label>
+                <input
+                  type="text"
+                  value={editSlug}
+                  onChange={(e) => setEditSlug(e.target.value)}
+                  placeholder="cybersecurity-ctf"
+                  required
+                  className="w-full px-3 py-2 rounded-md bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 text-xs text-zinc-900 dark:text-zinc-100 focus:border-violet-600 outline-none font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-zinc-700 dark:text-zinc-300 font-semibold mb-1">
+                  Description
+                </label>
+                <textarea
+                  rows={2}
+                  value={editDescription}
+                  onChange={(e) => setEditDescription(e.target.value)}
+                  placeholder="Summary of events under this classification..."
+                  className="w-full px-3 py-2 rounded-md bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 text-xs text-zinc-900 dark:text-zinc-100 focus:border-violet-600 outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-zinc-700 dark:text-zinc-300 font-semibold mb-1">
+                  Badge Color Accent
+                </label>
+                <select
+                  value={editColor}
+                  onChange={(e) => setEditColor(e.target.value)}
+                  className="w-full px-3 py-2 rounded-md bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 text-xs text-zinc-900 dark:text-zinc-100 focus:border-violet-600 outline-none"
+                >
+                  <option value="violet">Electric Violet</option>
+                  <option value="emerald">Emerald Green</option>
+                  <option value="cyan">Cyan Blue</option>
+                  <option value="amber">Amber Gold</option>
+                  <option value="rose">Rose Red</option>
+                  <option value="indigo">Indigo Purple</option>
+                </select>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-zinc-200 dark:border-zinc-800">
+                <button
+                  type="button"
+                  onClick={() => setEditingCategory(null)}
+                  className="px-4 py-2 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="px-4 py-2 rounded-md bg-violet-600 hover:bg-violet-700 text-white font-semibold flex items-center gap-1.5 shadow-sm disabled:opacity-50"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                      <span>Update Category</span>
                     </>
                   )}
                 </button>

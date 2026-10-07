@@ -8,7 +8,7 @@ export default async function JudgeLayout({
 }) {
   const user = await getCurrentUser();
 
-  if (!user || (user.role !== 'JUDGE' && user.role !== 'ORGANIZER' && user.role !== 'ADMIN')) {
+  if (!user || user.role !== 'JUDGE') {
     redirect('/?denied=judge');
   }
 

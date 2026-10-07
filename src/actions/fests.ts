@@ -133,3 +133,106 @@ export async function getAllFests() {
     },
   });
 }
+
+export interface UpdateFestInput {
+  title?: string;
+  slug?: string;
+  description?: string;
+  location?: string;
+  startDate?: string;
+  endDate?: string;
+  status?: FestStatus;
+  bannerUrl?: string;
+  organizationId?: string;
+}
+
+export async function updateFest(festId: string, data: UpdateFestInput) {
+  try {
+    const user = await getCurrentUser();
+    if (!user || (user.role !== 'ORGANIZER' && user.role !== 'ADMIN')) {
+      return {
+        success: false,
+        message: 'Unauthorized: Only Organizers and Admins can update festivals.',
+      };
+    }
+
+    const fest = await prisma.fest.findUnique({
+      where: { id: festId },
+      include: { organization: true },
+    });
+
+    if (!fest) {
+      return { success: false, message: 'Festival not found.' };
+    }
+
+    const cleanTitle = data.title ? data.title.trim() : fest.title;
+    const cleanSlug = data.slug
+      ? data.slug
+          .toLowerCase()
+          .trim()
+          .replace(/[^a-z0-9-]+/g, '-')
+          .replace(/^-+|-+$/g, '')
+      : fest.slug;
+
+    if (cleanSlug !== fest.slug) {
+      const existing = await prisma.fest.findUnique({ where: { slug: cleanSlug } });
+      if (existing) {
+        return {
+          success: false,
+          message: `A festival with slug "${cleanSlug}" already exists.`,
+        };
+      }
+    }
+
+    const updated = await prisma.fest.update({
+      where: { id: festId },
+      data: {
+        title: cleanTitle,
+        slug: cleanSlug,
+        description: data.description !== undefined ? data.description.trim() : fest.description,
+        location: data.location !== undefined ? data.location.trim() : fest.location,
+        startDate: data.startDate ? new Date(data.startDate) : fest.startDate,
+        endDate: data.endDate ? new Date(data.endDate) : fest.endDate,
+        status: data.status || fest.status,
+        bannerUrl: data.bannerUrl !== undefined ? (data.bannerUrl.trim() || null) : fest.bannerUrl,
+        organizationId: data.organizationId || fest.organizationId,
+      },
+      include: { organization: true },
+    });
+
+    await prisma.auditLog.create({
+      data: {
+        action: 'FEST_UPDATED',
+        entityType: 'Fest',
+        entityId: updated.id,
+        actorId: user.id,
+        metadata: {
+          title: updated.title,
+          slug: updated.slug,
+          status: updated.status,
+          updatedByName: user.name,
+        },
+      },
+    });
+
+    revalidatePath('/fests');
+    revalidatePath(`/fests/${fest.slug}`);
+    revalidatePath(`/fests/${updated.slug}`);
+    revalidatePath('/admin');
+    revalidatePath('/events');
+
+    return {
+      success: true,
+      message: `Festival "${updated.title}" updated successfully!`,
+      festSlug: updated.slug,
+      festId: updated.id,
+    };
+  } catch (error: unknown) {
+    const err = error as Error;
+    return {
+      success: false,
+      message: err.message || 'Failed to update festival.',
+    };
+  }
+}
+

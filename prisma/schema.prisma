@@ -85,6 +85,8 @@ model User {
   ticketMessages  TicketMessage[]
   auditLogs       AuditLog[]
   assignedEvents  EventJudge[]
+  createdEvents   Event[]         @relation("EventCreator")
+  claimedSubmissions Submission[] @relation("JudgeClaim")
 }
 
 model Organization {
@@ -126,6 +128,7 @@ model Event {
   description          String
   rules                String?
   rulebookUrl          String?
+  bannerUrl            String?
   judgingCriteria      Json?
   category             EventCategory @default(CONTEST)
   customCategory       String?
@@ -133,9 +136,11 @@ model Event {
   categoryRel          Category?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   isCompetitive        Boolean       @default(true)
   festId               String
-  venue                String
-  eventDate            DateTime
-  registrationDeadline DateTime
+  venue                String?
+  isDateUndecided      Boolean       @default(false)
+  hasSpecificTime      Boolean       @default(true)
+  eventDate            DateTime?
+  registrationDeadline DateTime?
   capacity             Int
   fee                  Float         @default(0)
   isTeamEvent          Boolean       @default(false)
@@ -143,6 +148,10 @@ model Event {
   maxTeamSize          Int           @default(1)
   customFields         Json?
   isScoreboardFrozen   Boolean       @default(false)
+  isRulebookPublished  Boolean       @default(true)
+  isJudgingPublished   Boolean       @default(true)
+  createdById          String?
+  creator              User?         @relation("EventCreator", fields: [createdById], references: [id], onDelete: SetNull)
   createdAt            DateTime      @default(now())
   updatedAt            DateTime      @updatedAt
 
@@ -216,9 +225,13 @@ model Submission {
   repoUrl     String
   liveDemoUrl String
   videoUrl    String?
-  description String
-  submittedAt DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  description        String
+  submittedAt        DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  revisionNumber     Int      @default(1)
+  claimedByJudgeId   String?
+  claimedByJudge     User?    @relation("JudgeClaim", fields: [claimedByJudgeId], references: [id], onDelete: SetNull)
+  claimedAt          DateTime?
 
   event  Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
   team   Team?        @relation(fields: [teamId], references: [id], onDelete: SetNull)

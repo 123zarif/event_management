@@ -1,7 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
-import { StatusBadge } from '@/components/StatusBadge';
 import { 
   Users, 
   QrCode, 
@@ -14,6 +13,8 @@ import {
   Plus
 } from 'lucide-react';
 import { formatDateTime } from '@/lib/utils';
+
+import { RecentRegistrationsCard } from './RecentRegistrationsCard';
 
 interface OrganizerDashboardProps {
   currentUser: {
@@ -34,17 +35,29 @@ export async function OrganizerDashboard({ currentUser }: OrganizerDashboardProp
   const events = await prisma.event.findMany({
     include: {
       fest: true,
+      creator: true,
       _count: { select: { registrations: true, submissions: true } },
     },
     orderBy: { eventDate: 'asc' },
   });
 
-  const recentRegistrations = await prisma.registration.findMany({
-    take: 6,
+  // Query active and cancelled registrations separately for the filtered widget (Item 23)
+  const recentActiveRegistrations = await prisma.registration.findMany({
+    where: { status: { not: 'CANCELLED' } },
+    take: 8,
     include: {
-      user: true,
-      event: true,
-      team: true,
+      user: { select: { name: true, email: true } },
+      event: { select: { title: true } },
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  const recentCancelledRegistrations = await prisma.registration.findMany({
+    where: { status: 'CANCELLED' },
+    take: 8,
+    include: {
+      user: { select: { name: true, email: true } },
+      event: { select: { title: true } },
     },
     orderBy: { createdAt: 'desc' },
   });
@@ -202,6 +215,13 @@ export async function OrganizerDashboard({ currentUser }: OrganizerDashboardProp
                     {ev.title}
                   </h3>
 
+                  <p className="text-[11px] text-zinc-500 font-mono mt-1 flex items-center gap-1.5 flex-wrap">
+                    <span>Created by</span>
+                    <strong className="text-zinc-700 dark:text-zinc-300 font-semibold">{ev.creator?.name || 'Club Organizer'}</strong>
+                    <span>on</span>
+                    <span>{formatDateTime(ev.createdAt).split(',')[0]}</span>
+                  </p>
+
                   <div className="mt-3 space-y-1">
                     <div className="flex justify-between text-[11px] font-mono text-zinc-500">
                       <span>CAPACITY</span>
@@ -252,37 +272,25 @@ export async function OrganizerDashboard({ currentUser }: OrganizerDashboardProp
 
       {/* 4. Live Check-in Feed & Audit Log Split */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent Registrations & Check-in table */}
-        <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-5 space-y-4 shadow-xs">
-          <div className="flex justify-between items-center border-b border-zinc-200 dark:border-zinc-800 pb-3">
-            <h3 className="font-bold text-zinc-900 dark:text-zinc-100 text-sm flex items-center gap-2">
-              <Users className="h-4 w-4 text-violet-600 dark:text-violet-400" />
-              Recent Registrations
-            </h3>
-            <Link
-              href="/admin/participants"
-              className="text-xs text-violet-600 dark:text-violet-400 hover:underline font-medium"
-            >
-              Full Registry →
-            </Link>
-          </div>
-
-          <div className="divide-y divide-zinc-100 dark:divide-zinc-900 text-xs">
-            {recentRegistrations.map((r) => (
-              <div key={r.id} className="py-2.5 flex items-center justify-between">
-                <div className="min-w-0 space-y-0.5">
-                  <p className="font-medium text-zinc-900 dark:text-zinc-100 truncate">
-                    {r.user.name}
-                  </p>
-                  <p className="text-[10px] text-zinc-500 font-mono truncate">
-                    {r.ticketCode} · {r.event.title}
-                  </p>
-                </div>
-                <StatusBadge status={r.status} />
-              </div>
-            ))}
-          </div>
-        </div>
+        {/* Recent Registrations with Active/Cancelled Filter (Item 23) */}
+        <RecentRegistrationsCard
+          activeRegistrations={recentActiveRegistrations.map((r) => ({
+            id: r.id,
+            status: r.status,
+            ticketCode: r.ticketCode,
+            createdAt: r.createdAt.toISOString(),
+            user: { name: r.user.name, email: r.user.email },
+            event: { title: r.event.title },
+          }))}
+          cancelledRegistrations={recentCancelledRegistrations.map((r) => ({
+            id: r.id,
+            status: r.status,
+            ticketCode: r.ticketCode,
+            createdAt: r.createdAt.toISOString(),
+            user: { name: r.user.name, email: r.user.email },
+            event: { title: r.event.title },
+          }))}
+        />
 
         {/* Recent Security Audits */}
         <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-5 space-y-4 shadow-xs">

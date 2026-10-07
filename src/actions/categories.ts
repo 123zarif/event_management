@@ -137,3 +137,76 @@ export async function deleteCategory(id: string) {
     return { success: false, message: err.message || 'Failed to delete category.' };
   }
 }
+
+export interface UpdateCategoryInput {
+  name?: string;
+  slug?: string;
+  description?: string;
+  color?: string;
+}
+
+export async function updateCategory(id: string, data: UpdateCategoryInput) {
+  try {
+    const user = await getCurrentUser();
+    if (!user || (user.role !== 'ORGANIZER' && user.role !== 'ADMIN')) {
+      return { success: false, message: 'Unauthorized: Only Organizers and Admins can update categories.' };
+    }
+
+    const category = await prisma.category.findUnique({ where: { id } });
+    if (!category) {
+      return { success: false, message: 'Category not found.' };
+    }
+
+    const cleanName = data.name ? data.name.trim() : category.name;
+    const cleanSlug = data.slug
+      ? data.slug
+          .toLowerCase()
+          .trim()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-+|-+$/g, '')
+      : category.slug;
+
+    // Check collision if name or slug changed
+    if (cleanName !== category.name || cleanSlug !== category.slug) {
+      const existing = await prisma.category.findFirst({
+        where: {
+          id: { not: id },
+          OR: [{ name: cleanName }, { slug: cleanSlug }],
+        },
+      });
+      if (existing) {
+        return { success: false, message: `Another category with name "${cleanName}" or slug "${cleanSlug}" already exists.` };
+      }
+    }
+
+    const updated = await prisma.category.update({
+      where: { id },
+      data: {
+        name: cleanName,
+        slug: cleanSlug,
+        description: data.description !== undefined ? (data.description.trim() || null) : category.description,
+        color: data.color || category.color,
+      },
+    });
+
+    await prisma.auditLog.create({
+      data: {
+        action: 'CATEGORY_UPDATED',
+        entityType: 'Category',
+        entityId: id,
+        actorId: user.id,
+        metadata: { name: updated.name, slug: updated.slug },
+      },
+    });
+
+    revalidatePath('/events');
+    revalidatePath('/admin/events/new');
+    revalidatePath('/admin/categories');
+
+    return { success: true, message: `Category "${updated.name}" updated successfully!`, category: updated };
+  } catch (error: unknown) {
+    const err = error as Error;
+    return { success: false, message: err.message || 'Failed to update category.' };
+  }
+}
+
