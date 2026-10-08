@@ -1,13 +1,32 @@
-# Production Caddyfile with Automatic HTTPS
-# Replace :80 with your domain (e.g. event.yourdomain.com) when deploying to VPS
+# Production Caddyfile for zarifzuhayer.tech
+# Automatic HTTPS via Let's Encrypt / ZeroSSL
 
-:80 {
-    reverse_proxy web:3000
-    encode gzip zstd
+# Redirect www to apex domain
+www.zarifzuhayer.tech {
+	redir https://zarifzuhayer.tech{uri} permanent
 }
 
-# Example with custom domain:
-# event.yourdomain.com {
-#     reverse_proxy web:3000
-#     encode gzip zstd
-# }
+zarifzuhayer.tech {
+	# Reverse proxy to Next.js application container
+	reverse_proxy web:3000
+
+	# Modern high-performance compression
+	encode gzip zstd
+
+	# Production security headers
+	header {
+		# HTTP Strict Transport Security (HSTS)
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		# MIME-type sniffing defense
+		X-Content-Type-Options "nosniff"
+		# Clickjacking defense
+		X-Frame-Options "SAMEORIGIN"
+		# Strict referrer policy
+		Referrer-Policy "strict-origin-when-cross-origin"
+	}
+
+	# Request body limit for file and image uploads
+	request_body {
+		max_size 25MB
+	}
+}

@@ -1,4 +1,5 @@
 import React from 'react';
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth';
@@ -7,6 +8,22 @@ import { Calendar, MapPin, ArrowRight, Trophy, Plus } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
+
+export const metadata: Metadata = {
+  title: 'Festivals & Carnivals Directory',
+  description:
+    'Discover signature technology carnivals, hackathons, and cultural fests hosted across colleges on ClubSphere.',
+  alternates: {
+    canonical: '/fests',
+  },
+  openGraph: {
+    title: 'Festivals & Carnivals Directory | ClubSphere',
+    description:
+      'Discover signature technology carnivals, hackathons, and cultural fests hosted across colleges on ClubSphere.',
+    url: '/fests',
+    images: ['/api/og?title=Festivals%20%26%20Carnivals%20Directory&category=FESTIVALS'],
+  },
+};
 
 export default async function FestsPage() {
   const user = await getCurrentUser();

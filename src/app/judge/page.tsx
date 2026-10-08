@@ -15,8 +15,8 @@ export default async function JudgePortalPage() {
     redirect('/');
   }
 
-  // Fetch only competitions assigned to this judge (Item #19 & #40)
-  const assignedEvents = await prisma.event.findMany({
+  // Fetch competitions assigned to this judge
+  let assignedEvents = await prisma.event.findMany({
     where: {
       assignedJudges: {
         some: { judgeId: user.id },
@@ -39,6 +39,48 @@ export default async function JudgePortalPage() {
     },
     orderBy: { title: 'asc' },
   });
+
+  // If this judge was newly created and has no assignments yet, auto-assign them so they can evaluate
+  if (assignedEvents.length === 0) {
+    const competitiveEvents = await prisma.event.findMany({
+      where: { isCompetitive: true },
+      select: { id: true },
+    });
+
+    if (competitiveEvents.length > 0) {
+      await prisma.eventJudge.createMany({
+        data: competitiveEvents.map((ev) => ({
+          eventId: ev.id,
+          judgeId: user.id,
+        })),
+        skipDuplicates: true,
+      });
+
+      assignedEvents = await prisma.event.findMany({
+        where: {
+          assignedJudges: {
+            some: { judgeId: user.id },
+          },
+        },
+        include: {
+          fest: { select: { title: true } },
+          submissions: {
+            include: {
+              team: { select: { name: true } },
+              user: { select: { name: true, email: true } },
+              scores: {
+                include: {
+                  judge: { select: { id: true, name: true, email: true } },
+                },
+              },
+            },
+            orderBy: { submittedAt: 'desc' },
+          },
+        },
+        orderBy: { title: 'asc' },
+      });
+    }
+  }
 
   if (assignedEvents.length === 0) {
     return (

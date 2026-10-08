@@ -64,15 +64,24 @@ export function SubNavbar({ currentUser }: SubNavbarProps) {
   // 5. Verifier (available to all)
   tabs.push({ label: 'Verify Cert', href: '/verify-certificate', icon: ShieldCheck });
 
+  // Find single most-specific matching tab across all tabs
+  const allTabHrefs = tabs.map((t) => t.href);
+  const matchingTabHrefs = allTabHrefs.filter((href) => {
+    if (href === '/') return pathname === '/';
+    return pathname === href || pathname.startsWith(`${href}/`);
+  });
+  const activeTabHref = matchingTabHrefs.length > 0
+    ? matchingTabHrefs.reduce((longest, current) =>
+        current.length > longest.length ? current : longest
+      )
+    : null;
+
   return (
     <div className="w-full border-b border-zinc-200 dark:border-zinc-800 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-xs px-4 sm:px-6 lg:px-8 overflow-x-auto scrollbar-none transition-colors">
       <nav className="flex items-center gap-1 sm:gap-2 h-10 min-w-max">
         {tabs.map((tab) => {
           const Icon = tab.icon;
-          const isActive =
-            tab.href === '/'
-              ? pathname === '/'
-              : pathname === tab.href || pathname.startsWith(`${tab.href}/`);
+          const isActive = tab.href === activeTabHref;
 
           return (
             <Link

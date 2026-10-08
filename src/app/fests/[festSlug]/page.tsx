@@ -1,4 +1,5 @@
 import React from 'react';
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
@@ -12,6 +13,51 @@ export const dynamic = 'force-dynamic';
 
 interface FestDetailPageProps {
   params: Promise<{ festSlug: string }>;
+}
+
+export async function generateMetadata({ params }: FestDetailPageProps): Promise<Metadata> {
+  const { festSlug } = await params;
+  const fest = await prisma.fest.findUnique({
+    where: { slug: festSlug },
+    include: { organization: true },
+  });
+
+  if (!fest) {
+    return {
+      title: 'Fest Not Found',
+    };
+  }
+
+  const orgName = fest.organization?.name || 'DRMC';
+  const ogImageUrl = `/api/og?title=${encodeURIComponent(fest.title)}&category=${encodeURIComponent('TECH FESTIVAL')}&fest=${encodeURIComponent(orgName)}`;
+
+  return {
+    title: fest.title,
+    description: fest.description.slice(0, 160),
+    alternates: {
+      canonical: `/fests/${fest.slug}`,
+    },
+    openGraph: {
+      title: `${fest.title} | ClubSphere`,
+      description: fest.description.slice(0, 160),
+      url: `/fests/${fest.slug}`,
+      type: 'website',
+      images: [
+        {
+          url: ogImageUrl,
+          width: 1200,
+          height: 630,
+          alt: fest.title,
+        },
+      ],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: `${fest.title} | ClubSphere`,
+      description: fest.description.slice(0, 160),
+      images: [ogImageUrl],
+    },
+  };
 }
 
 export default async function FestDetailPage({ params }: FestDetailPageProps) {

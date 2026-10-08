@@ -1,4 +1,5 @@
 import React from 'react';
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
@@ -35,6 +36,52 @@ interface JudgingCriterionItem {
 
 interface EventPageProps {
   params: Promise<{ eventSlug: string }>;
+}
+
+export async function generateMetadata({ params }: EventPageProps): Promise<Metadata> {
+  const { eventSlug } = await params;
+  const event = await prisma.event.findUnique({
+    where: { slug: eventSlug },
+    include: { fest: true },
+  });
+
+  if (!event) {
+    return {
+      title: 'Event Not Found',
+    };
+  }
+
+  const categoryFormatted = event.category.replace(/_/g, ' ');
+  const festTitle = event.fest?.title || 'DRMC Tech Carnival 2026';
+  const ogImageUrl = `/api/og?title=${encodeURIComponent(event.title)}&category=${encodeURIComponent(categoryFormatted)}&fest=${encodeURIComponent(festTitle)}`;
+
+  return {
+    title: event.title,
+    description: event.description.slice(0, 160),
+    alternates: {
+      canonical: `/events/${event.slug}`,
+    },
+    openGraph: {
+      title: `${event.title} | ClubSphere`,
+      description: event.description.slice(0, 160),
+      url: `/events/${event.slug}`,
+      type: 'website',
+      images: [
+        {
+          url: ogImageUrl,
+          width: 1200,
+          height: 630,
+          alt: event.title,
+        },
+      ],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: `${event.title} | ClubSphere`,
+      description: event.description.slice(0, 160),
+      images: [ogImageUrl],
+    },
+  };
 }
 
 export default async function EventDetailPage({ params }: EventPageProps) {

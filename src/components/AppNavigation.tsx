@@ -33,7 +33,7 @@ export function AppNavigation({ currentUser, children }: AppNavigationProps) {
   }, []);
 
   return (
-    <div className="min-h-screen flex flex-row w-full bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 transition-colors">
+    <div className="h-screen overflow-hidden flex flex-row w-full bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 transition-colors">
       {/* 1. Persistent Left Sidebar (Desktop collapsible, Mobile drawer) */}
       <Sidebar
         currentUser={currentUser}
@@ -42,27 +42,30 @@ export function AppNavigation({ currentUser, children }: AppNavigationProps) {
         onCloseMobile={() => setMobileSidebarOpen(false)}
       />
 
-      {/* 2. Main Work Area (Edge-to-edge, fluid responsive) */}
-      <div className="flex-1 flex flex-col min-w-0 w-full overflow-x-hidden">
-        {/* Tier 1: Utility Navigation Bar */}
-        <Navbar
-          currentUser={currentUser}
-          onOpenSearch={() => setCommandOpen(true)}
-          sidebarCollapsed={sidebarCollapsed}
-          onToggleSidebar={() => setSidebarCollapsed((prev) => !prev)}
-          onOpenMobileSidebar={() => setMobileSidebarOpen(true)}
-        />
+      {/* 2. Main Work Area (Fixed viewport height, pinned header, scrollable main content) */}
+      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
+        {/* Pinned Header Block: Tier 1 Utility Navbar + Tier 2 Operational Sub-Navbar */}
+        <div className="shrink-0 z-30 flex flex-col bg-white/95 dark:bg-zinc-950/95 backdrop-blur-md">
+          <Navbar
+            currentUser={currentUser}
+            onOpenSearch={() => setCommandOpen(true)}
+            sidebarCollapsed={sidebarCollapsed}
+            onToggleSidebar={() => setSidebarCollapsed((prev) => !prev)}
+            onOpenMobileSidebar={() => setMobileSidebarOpen(true)}
+          />
+          <SubNavbar currentUser={currentUser} />
+        </div>
 
-        {/* Tier 2: Operational Sub-Navbar Tabs */}
-        <SubNavbar currentUser={currentUser} />
+        {/* Scrollable Main Viewport (The ONLY container that scrolls on the webpage) */}
+        <div className="flex-1 overflow-y-auto overflow-x-hidden flex flex-col">
+          {/* Dynamic Page Content Slot - 100% fluid edge-to-edge with balanced padding */}
+          <main className="flex-1 w-full px-4 sm:px-6 lg:px-8 py-6">
+            {children}
+          </main>
 
-        {/* Dynamic Page Content Slot - 100% fluid edge-to-edge with balanced padding */}
-        <main className="flex-1 w-full px-4 sm:px-6 lg:px-8 py-6">
-          {children}
-        </main>
-
-        {/* Full-width Footer */}
-        <Footer />
+          {/* Full-width Footer */}
+          <Footer />
+        </div>
       </div>
 
       {/* ⌘K Global Command Palette */}

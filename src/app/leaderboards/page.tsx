@@ -1,9 +1,26 @@
 import React from 'react';
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
 import { Trophy, ArrowRight, Lock } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
+
+export const metadata: Metadata = {
+  title: 'Competition Scoreboards & Standings',
+  description:
+    'Live judge rankings, submission evaluations, and official tournament standings across all DRMC competitions.',
+  alternates: {
+    canonical: '/leaderboards',
+  },
+  openGraph: {
+    title: 'Competition Scoreboards & Standings | ClubSphere',
+    description:
+      'Live judge rankings, submission evaluations, and official tournament standings across all DRMC competitions.',
+    url: '/leaderboards',
+    images: ['/api/og?title=Competition%20Scoreboards%20%26%20Standings&category=LEADERBOARDS'],
+  },
+};
 
 export default async function LeaderboardsIndexPage() {
   const events = await prisma.event.findMany({

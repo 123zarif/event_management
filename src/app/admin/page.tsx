@@ -10,11 +10,16 @@ import {
   HelpCircle,
   ArrowRight,
   Calendar,
-  Award
+  Award,
+  Edit3,
+  MapPin,
+  Plus,
+  ExternalLink
 } from 'lucide-react';
-import { formatDateTime } from '@/lib/utils';
+import { formatDateTime, formatDate } from '@/lib/utils';
 import { redirect } from 'next/navigation';
 import { RecentRegistrationsCard } from '@/components/dashboards/RecentRegistrationsCard';
+import { AdminDeleteButton } from '@/components/AdminDeleteButton';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,6 +35,14 @@ export default async function AdminDashboardPage() {
   const checkedInCount = await prisma.registration.count({ where: { status: 'CHECKED_IN' } });
   const waitlistedCount = await prisma.registration.count({ where: { status: 'WAITLISTED' } });
   const openTicketsCount = await prisma.supportTicket.count({ where: { status: { in: ['OPEN', 'IN_PROGRESS'] } } });
+
+  const fests = await prisma.fest.findMany({
+    include: {
+      organization: true,
+      _count: { select: { events: true } },
+    },
+    orderBy: { startDate: 'desc' },
+  });
 
   const events = await prisma.event.findMany({
     include: {
@@ -228,6 +241,15 @@ export default async function AdminDashboardPage() {
                   </div>
 
                   <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                    <Link
+                      href={`/admin/events/${ev.slug}/edit`}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-[11px] text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white"
+                      title="Edit Track"
+                    >
+                      <Edit3 className="h-3 w-3" />
+                      Edit
+                    </Link>
+
                     {ev.isCompetitive && (
                       <Link
                         href={`/admin/competitions/${ev.slug}/judges`}
@@ -248,14 +270,12 @@ export default async function AdminDashboardPage() {
                       Badges
                     </Link>
 
-                    {ev.category === 'GAMING' && (
-                      <Link
-                        href={`/admin/competitions/${ev.slug}/brackets`}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-[11px] text-violet-600 dark:text-violet-400 hover:text-violet-700 dark:hover:text-violet-300"
-                      >
-                        Brackets
-                      </Link>
-                    )}
+                    <AdminDeleteButton
+                      id={ev.id}
+                      slug={ev.slug}
+                      title={ev.title}
+                      type="event"
+                    />
                   </div>
                 </div>
 
@@ -274,6 +294,99 @@ export default async function AdminDashboardPage() {
               </div>
             );
           })}
+        </div>
+      </div>
+
+      {/* Festivals & Carnivals Management Section */}
+      <div className="space-y-4">
+        <div className="border-b border-zinc-200 dark:border-zinc-800 pb-3 flex justify-between items-center">
+          <div>
+            <h2 className="text-base font-bold text-zinc-900 dark:text-zinc-100 tracking-tight">
+              Active Festivals & Carnivals ({fests.length})
+            </h2>
+            <p className="text-xs text-zinc-600 dark:text-zinc-400">
+              Host festivals and their linked competitive tracks.
+            </p>
+          </div>
+          <Link
+            href="/admin/fests/new"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-violet-600 text-white hover:bg-violet-700 dark:hover:bg-violet-500 transition-colors shadow-xs"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            <span>New Festival</span>
+          </Link>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {fests.map((f) => (
+            <div
+              key={f.id}
+              className="p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/40 space-y-3 shadow-xs flex flex-col justify-between"
+            >
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-mono uppercase text-violet-600 dark:text-violet-400 font-bold px-1.5 py-0.5 rounded bg-violet-50 dark:bg-violet-950/60 border border-violet-200 dark:border-violet-800">
+                    {f.organization.name}
+                  </span>
+                  <span className="text-[11px] font-mono text-zinc-500">
+                    {f._count.events} Track{f._count.events === 1 ? '' : 's'}
+                  </span>
+                </div>
+                <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
+                  {f.title}
+                </h3>
+                <div className="flex items-center gap-3 text-xs text-zinc-500 font-mono">
+                  <span className="flex items-center gap-1">
+                    <Calendar className="h-3 w-3 text-zinc-400" />
+                    {formatDate(f.startDate).split(',')[0]}
+                  </span>
+                  <span className="flex items-center gap-1 truncate max-w-[150px]">
+                    <MapPin className="h-3 w-3 text-zinc-400" />
+                    {f.location}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-2 border-t border-zinc-100 dark:border-zinc-800/80 gap-2">
+                <div className="flex items-center gap-1.5">
+                  <Link
+                    href={`/fests/${f.slug}`}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-[11px] text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white"
+                    title="View Festival"
+                  >
+                    <ExternalLink className="h-3 w-3" />
+                    View
+                  </Link>
+                  <Link
+                    href={`/admin/fests/${f.slug}/edit`}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-[11px] text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white"
+                    title="Edit Festival"
+                  >
+                    <Edit3 className="h-3 w-3" />
+                    Edit
+                  </Link>
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  <Link
+                    href={`/admin/events/new?festId=${f.id}`}
+                    className="inline-flex items-center gap-1 px-2 py-1 rounded bg-violet-50 dark:bg-violet-950/60 border border-violet-200 dark:border-violet-800 text-[11px] text-violet-700 dark:text-violet-300 hover:bg-violet-100 dark:hover:bg-violet-900"
+                    title="Add track to festival"
+                  >
+                    <Plus className="h-3 w-3" />
+                    Track
+                  </Link>
+                  <AdminDeleteButton
+                    id={f.id}
+                    slug={f.slug}
+                    title={f.title}
+                    type="fest"
+                    variant="icon"
+                  />
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 

@@ -1,4 +1,5 @@
 import React from 'react';
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth';
@@ -22,6 +23,15 @@ import { cancelRegistration } from '@/actions/registration';
 import { revalidatePath } from 'next/cache';
 
 export const dynamic = 'force-dynamic';
+
+export const metadata: Metadata = {
+  title: 'My Event Registrations & Tickets',
+  description: 'Manage your collegiate event tickets, team registrations, and project submissions.',
+  robots: {
+    index: false,
+    follow: false,
+  },
+};
 
 export default async function MyRegistrationsPage() {
   const user = await getCurrentUser();

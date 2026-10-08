@@ -3,7 +3,8 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { updateFest } from '@/actions/fests';
+import { updateFest, deleteFest } from '@/actions/fests';
+import { DeleteConfirmationModal } from '@/components/DeleteConfirmationModal';
 import { FestStatus } from '@prisma/client';
 import { 
   ArrowLeft, 
@@ -11,7 +12,11 @@ import {
   MapPin, 
   Layers, 
   Loader2,
-  CheckCircle2
+  CheckCircle2,
+  UploadCloud,
+  Trash2,
+  AlertCircle,
+  Image as ImageIcon
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -55,7 +60,63 @@ export function EditFestForm({ fest, organizations }: EditFestFormProps) {
   const [status, setStatus] = useState<FestStatus>(fest.status);
   const [description, setDescription] = useState(fest.description);
   const [bannerUrl, setBannerUrl] = useState(fest.bannerUrl || '');
+  const [uploadingBanner, setUploadingBanner] = useState(false);
+  const [bannerError, setBannerError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleBannerSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setBannerError('');
+
+    const validExts = ['.png', '.jpg', '.jpeg', '.webp'];
+    const lowerName = file.name.toLowerCase();
+    if (!validExts.some((ext) => lowerName.endsWith(ext))) {
+      setBannerError('Invalid format: Only PNG, JPEG, and WebP images are permitted.');
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      setBannerError('File size exceeds 10 MB limit.');
+      return;
+    }
+
+    setUploadingBanner(true);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('eventSlug', slug || 'fest-banner');
+
+      const res = await fetch('/api/admin/upload-banner', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Failed to upload banner');
+      }
+
+      setBannerUrl(data.url);
+      toast.success('Festival banner uploaded successfully!');
+    } catch (err: unknown) {
+      const error = err as Error;
+      setBannerError(error.message);
+      toast.error(error.message);
+    } finally {
+      setUploadingBanner(false);
+    }
+  };
+
+  const removeBanner = () => {
+    setBannerUrl('');
+    setBannerError('');
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -110,6 +171,26 @@ export function EditFestForm({ fest, organizations }: EditFestFormProps) {
     }
   };
 
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      const res = await deleteFest(fest.id);
+      if (!res.success) {
+        toast.error(res.message);
+        setDeleting(false);
+        return;
+      }
+
+      toast.success(res.message);
+      setShowDeleteModal(false);
+      router.push('/admin');
+    } catch (err: unknown) {
+      const error = err as Error;
+      toast.error(error.message || 'Failed to delete festival.');
+      setDeleting(false);
+    }
+  };
+
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
       {/* 1. Header */}
@@ -137,6 +218,15 @@ export function EditFestForm({ fest, organizations }: EditFestFormProps) {
         </div>
 
         <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setShowDeleteModal(true)}
+            className="px-3.5 py-2 rounded-md text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 border border-rose-200 dark:border-rose-900/60 transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
+            title="Permanently delete this festival"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            <span>Delete Festival</span>
+          </button>
           <Link
             href={`/fests/${fest.slug}`}
             className="px-4 py-2 rounded-md text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 transition-colors"
@@ -313,36 +403,137 @@ export function EditFestForm({ fest, organizations }: EditFestFormProps) {
           </div>
 
           <div className="p-5 rounded-xl bg-white dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-800 space-y-4 shadow-xs">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 font-mono">
-              Festival Banner Graphic
-            </h2>
-
-            <div>
-              <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">
-                Banner Image URL
-              </label>
-              <input
-                type="url"
-                value={bannerUrl}
-                onChange={(e) => setBannerUrl(e.target.value)}
-                placeholder="https://images.unsplash.com/..."
-                className="w-full px-3 py-2 rounded-md bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs text-zinc-900 dark:text-zinc-100 focus:border-violet-600 outline-none"
-              />
+            <div className="flex items-center justify-between">
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 font-mono flex items-center gap-2">
+                <ImageIcon className="h-3.5 w-3.5 text-violet-600 dark:text-violet-400" />
+                Festival Banner Graphic
+              </h2>
+              <span className="text-[10px] text-zinc-500 font-mono">PNG, JPG, WEBP (Max 10MB)</span>
             </div>
 
-            {bannerUrl && (
-              <div className="rounded-lg overflow-hidden border border-zinc-200 dark:border-zinc-800 aspect-video relative bg-zinc-950">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={bannerUrl}
-                  alt="Banner preview"
-                  className="w-full h-full object-cover"
-                />
+            {!bannerUrl ? (
+              <div>
+                <label className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-zinc-200 dark:border-zinc-800 hover:border-violet-500/80 rounded-xl cursor-pointer bg-zinc-50/50 dark:bg-zinc-950/40 transition-colors group">
+                  <div className="w-10 h-10 rounded-full bg-violet-50 dark:bg-violet-950/60 text-violet-600 dark:text-violet-400 flex items-center justify-center mb-2 group-hover:scale-105 transition-transform">
+                    {uploadingBanner ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <UploadCloud className="w-5 h-5" />
+                    )}
+                  </div>
+                  <p className="text-xs font-semibold text-zinc-800 dark:text-zinc-200">
+                    {uploadingBanner ? 'Verifying and uploading banner...' : 'Click to select or drag and drop festival banner'}
+                  </p>
+                  <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+                    Standard 16:9 banner artwork displayed on festival portal, directory, and event showcases.
+                  </p>
+                  <input
+                    type="file"
+                    accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp"
+                    onChange={handleBannerSelect}
+                    disabled={uploadingBanner}
+                    className="hidden"
+                  />
+                </label>
+                {bannerError && (
+                  <p className="text-xs text-rose-600 dark:text-rose-400 mt-2 flex items-center gap-1.5">
+                    <AlertCircle className="h-3.5 w-3.5" />
+                    {bannerError}
+                  </p>
+                )}
+              </div>
+            ) : (
+              <div className="rounded-xl overflow-hidden border border-zinc-200 dark:border-zinc-800 bg-zinc-950 shadow-xs">
+                <div className="relative aspect-video w-full max-h-56 overflow-hidden">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={bannerUrl}
+                    alt="Banner Preview"
+                    className="w-full h-full object-cover object-center"
+                  />
+                </div>
+                <div className="p-3 bg-white dark:bg-zinc-900 border-t border-zinc-200 dark:border-zinc-800 flex items-center justify-between text-xs">
+                  <span className="text-[11px] font-mono text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    Banner Attached
+                  </span>
+                  <div className="flex items-center gap-3">
+                    <label className="text-xs text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200 flex items-center gap-1 font-medium cursor-pointer">
+                      <input
+                        type="file"
+                        accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp"
+                        onChange={handleBannerSelect}
+                        disabled={uploadingBanner}
+                        className="hidden"
+                      />
+                      {uploadingBanner ? (
+                        <>
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                          <span>Uploading...</span>
+                        </>
+                      ) : (
+                        <span>Replace Image</span>
+                      )}
+                    </label>
+                    <button
+                      type="button"
+                      onClick={removeBanner}
+                      className="text-xs text-rose-600 hover:text-rose-700 dark:text-rose-400 flex items-center gap-1 font-medium cursor-pointer"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      Remove
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
           </div>
         </div>
       </div>
+
+      {/* Danger Zone */}
+      <div className="rounded-xl border border-rose-500/30 dark:border-rose-900/40 bg-rose-500/5 dark:bg-rose-950/20 p-5 space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-mono uppercase font-bold px-2 py-0.5 rounded bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
+                Danger Zone
+              </span>
+            </div>
+            <h3 className="text-base font-bold text-zinc-900 dark:text-zinc-100">
+              Delete this Festival
+            </h3>
+            <p className="text-xs text-zinc-600 dark:text-zinc-400 max-w-2xl">
+              Permanently delete <strong className="text-zinc-800 dark:text-zinc-200">{fest.title}</strong> along with all associated competition tracks, registrations, project submissions, and judge scores.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setShowDeleteModal(true)}
+            className="px-4 py-2 rounded-lg text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white transition-colors cursor-pointer flex items-center justify-center gap-1.5 shadow-xs flex-shrink-0"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            <span>Delete Festival</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmationModal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        onConfirm={handleDelete}
+        title="Delete Festival"
+        itemName={fest.title}
+        expectedSlug={fest.slug}
+        impactNotice={
+          <p>
+            Permanently deletes <strong className="font-semibold text-rose-700 dark:text-rose-300">{fest.title}</strong> and cascades to all nested competition tracks, attendee registrations, and judging records.
+          </p>
+        }
+        isDeleting={deleting}
+      />
     </form>
   );
 }

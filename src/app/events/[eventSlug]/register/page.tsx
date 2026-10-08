@@ -73,7 +73,7 @@ export default function EventRegisterPage() {
       const userId = userData?.id;
 
       if (!userId) {
-        toast.error('Please sign in or select an evaluator persona to register');
+        toast.error('Please sign in to register for this event');
         router.push('/login');
         return;
       }

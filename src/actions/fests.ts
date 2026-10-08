@@ -236,3 +236,69 @@ export async function updateFest(festId: string, data: UpdateFestInput) {
   }
 }
 
+export async function deleteFest(festId: string) {
+  try {
+    const user = await getCurrentUser();
+    if (!user || (user.role !== 'ORGANIZER' && user.role !== 'ADMIN')) {
+      return {
+        success: false,
+        message: 'Unauthorized: Only Organizers and Admins can delete festivals.',
+      };
+    }
+
+    const fest = await prisma.fest.findUnique({
+      where: { id: festId },
+      include: {
+        _count: {
+          select: {
+            events: true,
+          },
+        },
+      },
+    });
+
+    if (!fest) {
+      return { success: false, message: 'Festival not found.' };
+    }
+
+    // Delete the festival (cascades to all associated events and their child records)
+    await prisma.fest.delete({
+      where: { id: festId },
+    });
+
+    // Record audit log
+    await prisma.auditLog.create({
+      data: {
+        action: 'FEST_DELETED',
+        entityType: 'Fest',
+        entityId: festId,
+        actorId: user.id,
+        metadata: {
+          title: fest.title,
+          slug: fest.slug,
+          deletedByName: user.name,
+          deletedByEmail: user.email,
+          eventCount: fest._count.events,
+        },
+      },
+    });
+
+    revalidatePath('/fests');
+    revalidatePath(`/fests/${fest.slug}`);
+    revalidatePath('/admin');
+    revalidatePath('/events');
+    revalidatePath('/leaderboards');
+
+    return {
+      success: true,
+      message: `Festival "${fest.title}" and its ${fest._count.events} associated event(s) have been deleted.`,
+    };
+  } catch (error: unknown) {
+    const err = error as Error;
+    return {
+      success: false,
+      message: err.message || 'Failed to delete festival.',
+    };
+  }
+}
+

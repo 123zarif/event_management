@@ -354,3 +354,76 @@ export async function updateEvent(eventId: string, data: UpdateEventInput) {
   }
 }
 
+export async function deleteEvent(eventId: string) {
+  try {
+    const user = await getCurrentUser();
+    if (!user || (user.role !== 'ORGANIZER' && user.role !== 'ADMIN')) {
+      return {
+        success: false,
+        message: 'Unauthorized: Only Organizers and Admins can delete events and competitions.',
+      };
+    }
+
+    const event = await prisma.event.findUnique({
+      where: { id: eventId },
+      include: {
+        fest: true,
+        _count: {
+          select: {
+            registrations: true,
+            submissions: true,
+            assignedJudges: true,
+          },
+        },
+      },
+    });
+
+    if (!event) {
+      return { success: false, message: 'Event not found.' };
+    }
+
+    // Delete the event (cascades to registrations, teams, submissions, judge scores, assigned judges)
+    await prisma.event.delete({
+      where: { id: eventId },
+    });
+
+    // Record audit log
+    await prisma.auditLog.create({
+      data: {
+        action: 'EVENT_DELETED',
+        entityType: 'Event',
+        entityId: eventId,
+        actorId: user.id,
+        metadata: {
+          title: event.title,
+          slug: event.slug,
+          festTitle: event.fest?.title,
+          deletedByName: user.name,
+          deletedByEmail: user.email,
+          registrationCount: event._count.registrations,
+          submissionCount: event._count.submissions,
+        },
+      },
+    });
+
+    revalidatePath('/events');
+    revalidatePath(`/events/${event.slug}`);
+    revalidatePath('/admin');
+    if (event.fest?.slug) {
+      revalidatePath(`/fests/${event.fest.slug}`);
+    }
+    revalidatePath('/leaderboards');
+
+    return {
+      success: true,
+      message: `Competition track "${event.title}" has been permanently deleted.`,
+    };
+  } catch (error: unknown) {
+    const err = error as Error;
+    return {
+      success: false,
+      message: err.message || 'Failed to delete event.',
+    };
+  }
+}
+

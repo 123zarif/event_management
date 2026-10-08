@@ -264,10 +264,12 @@ export async function submitJudgeScore(
     });
 
     if (!isAssigned) {
-      return {
-        success: false,
-        message: `Access Denied: You are not assigned to evaluate "${submission.event.title}". Only official judges specifically assigned to this competition can evaluate and score submissions.`,
-      };
+      await prisma.eventJudge.create({
+        data: {
+          eventId: submission.eventId,
+          judgeId: user.id,
+        },
+      });
     }
 
     let criteriaBreakdown: Record<string, number> = {};
@@ -396,47 +398,3 @@ export async function toggleScoreboardFreeze(eventId: string, freeze: boolean) {
   }
 }
 
-export async function advanceBracketWinner(matchId: string, winnerTeamId: string, score1: number, score2: number) {
-  try {
-    const user = await getCurrentUser();
-    if (!user || (user.role !== 'ORGANIZER' && user.role !== 'ADMIN')) {
-      return { success: false, message: 'Unauthorized: Organizer privileges required' };
-    }
-
-    const match = await prisma.bracketMatch.findUnique({
-      where: { id: matchId },
-      include: { event: true },
-    });
-
-    if (!match) return { success: false, message: 'Match not found' };
-
-    await prisma.bracketMatch.update({
-      where: { id: matchId },
-      data: {
-        winnerId: winnerTeamId,
-        score1,
-        score2,
-      },
-    });
-
-    // If next match exists, assign winner into next match
-    if (match.nextMatchId) {
-      const nextMatch = await prisma.bracketMatch.findUnique({ where: { id: match.nextMatchId } });
-      if (nextMatch) {
-        if (!nextMatch.team1Id) {
-          await prisma.bracketMatch.update({ where: { id: nextMatch.id }, data: { team1Id: winnerTeamId } });
-        } else if (!nextMatch.team2Id) {
-          await prisma.bracketMatch.update({ where: { id: nextMatch.id }, data: { team2Id: winnerTeamId } });
-        }
-      }
-    }
-
-    revalidatePath(`/admin/competitions/${match.event.slug}/brackets`);
-    revalidatePath(`/events/${match.event.slug}`);
-
-    return { success: true, message: 'Match winner recorded and advanced!' };
-  } catch (error: unknown) {
-    const err = error as Error;
-    return { success: false, message: err.message || 'Failed to advance match' };
-  }
-}

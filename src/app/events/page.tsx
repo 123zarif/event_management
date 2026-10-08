@@ -1,4 +1,5 @@
 import React from 'react';
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth';
@@ -6,6 +7,22 @@ import { MultiEventSelectorClient, SerializedEvent } from '@/components/MultiEve
 import { Trophy, Plus } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
+
+export const metadata: Metadata = {
+  title: 'All Events & Competitions',
+  description:
+    'Explore collegiate hackathons, robotics challenges, programming contests, and esports tournaments across DRMC Tech Carnival.',
+  alternates: {
+    canonical: '/events',
+  },
+  openGraph: {
+    title: 'All Events & Competitions | ClubSphere',
+    description:
+      'Explore collegiate hackathons, robotics challenges, programming contests, and esports tournaments across DRMC Tech Carnival.',
+    url: '/events',
+    images: ['/api/og?title=All%20Events%20%26%20Competitions&category=COMPETITIONS'],
+  },
+};
 
 interface EventsPageProps {
   searchParams: Promise<{

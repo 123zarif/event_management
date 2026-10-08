@@ -47,7 +47,8 @@ export async function setSessionUser(email: string): Promise<boolean> {
       path: '/',
       httpOnly: true,
       sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 7, // 7 days
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 60 * 60 * 24 * 30, // 30 days persistent session
     });
     return true;
   } catch {

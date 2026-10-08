@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "seed:prod": "tsx scripts/seed-production.ts",
+    "db:prod": "tsx scripts/seed-production.ts"
   },
   "dependencies": {
     "@prisma/client": "6.19.3",

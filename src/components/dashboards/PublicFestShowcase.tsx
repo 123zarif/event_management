@@ -61,7 +61,7 @@ export async function PublicFestShowcase() {
 
             <p className="text-xs sm:text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed max-w-3xl">
               Eliminating Google Forms for student clubs with atomic capacity slot locking, instant QR gate check-in, 
-              live tournament brackets, contestant help desk ticketing, and real-time judge scoring.
+              certified judge rubric scoring, contestant help desk ticketing, and live scoreboard standings.
             </p>
           </div>
 

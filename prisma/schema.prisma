@@ -57,12 +57,6 @@ enum TicketStatus {
   CLOSED
 }
 
-enum BracketRound {
-  QUARTERFINAL
-  SEMIFINAL
-  FINAL
-}
-
 model User {
   id            String    @id @default(cuid())
   email         String    @unique
@@ -159,7 +153,6 @@ model Event {
   registrations  Registration[]
   teams          Team[]
   submissions    Submission[]
-  bracketMatches BracketMatch[]
   supportTickets SupportTicket[]
   assignedJudges EventJudge[]
 }
@@ -199,9 +192,6 @@ model Team {
   members       TeamMember[]
   registrations Registration[]
   submissions   Submission[]
-  bracketTeam1  BracketMatch[] @relation("Team1")
-  bracketTeam2  BracketMatch[] @relation("Team2")
-  bracketWon    BracketMatch[] @relation("Winner")
 }
 
 model TeamMember {
@@ -253,26 +243,6 @@ model JudgeScore {
   judge      User       @relation(fields: [judgeId], references: [id], onDelete: Cascade)
 
   @@unique([submissionId, judgeId])
-}
-
-model BracketMatch {
-  id          String       @id @default(cuid())
-  eventId     String
-  roundName   BracketRound @default(QUARTERFINAL)
-  matchNumber Int
-  team1Id     String?
-  team2Id     String?
-  score1      Int          @default(0)
-  score2      Int          @default(0)
-  winnerId    String?
-  nextMatchId String?
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-
-  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  team1 Team? @relation("Team1", fields: [team1Id], references: [id], onDelete: SetNull)
-  team2 Team? @relation("Team2", fields: [team2Id], references: [id], onDelete: SetNull)
-  winner Team? @relation("Winner", fields: [winnerId], references: [id], onDelete: SetNull)
 }
 
 model SupportTicket {

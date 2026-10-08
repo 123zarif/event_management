@@ -1,9 +1,26 @@
 import React from 'react';
+import type { Metadata } from 'next';
 import { prisma } from '@/lib/prisma';
 import { ShieldCheck, Search } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
+
+export const metadata: Metadata = {
+  title: 'Verify Official Certificate',
+  description:
+    'Cryptographically verify official certificates issued for DRMC Tech Carnival events, awards, and participation credentials.',
+  alternates: {
+    canonical: '/verify-certificate',
+  },
+  openGraph: {
+    title: 'Verify Official Certificate | ClubSphere',
+    description:
+      'Cryptographically verify official certificates issued for DRMC Tech Carnival events, awards, and participation credentials.',
+    url: '/verify-certificate',
+    images: ['/api/og?title=Official%20Certificate%20Verification&category=CREDENTIALS'],
+  },
+};
 
 interface VerifyPageProps {
   searchParams: Promise<{ code?: string }>;

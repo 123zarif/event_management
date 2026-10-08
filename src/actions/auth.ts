@@ -1,20 +1,13 @@
 'use server';
 
-import { setSessionUser, clearSessionUser, verifyUserCredentials } from '@/lib/auth';
+import { setSessionUser, clearSessionUser, verifyUserCredentials, getCurrentUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { Role } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 
-export async function switchPersonaAction(email: string, redirectTo?: string) {
-  await setSessionUser(email);
-  revalidatePath('/', 'layout');
-  if (redirectTo) {
-    redirect(redirectTo);
-  }
-  return { success: true };
-}
+
 
 export async function loginAction(formData: FormData) {
   const email = (formData.get('email') as string)?.trim().toLowerCase();
@@ -48,12 +41,16 @@ export async function signupAction(formData: FormData) {
   const institution = (formData.get('institution') as string)?.trim();
   const phone = (formData.get('phone') as string)?.trim();
 
-  if (!name || !email || !password) {
-    return { success: false, message: 'Please provide full name, email, and password' };
+  if (!name || !email || !password || !institution || !phone) {
+    return { success: false, message: 'Please provide full name, email, password, institution, and phone number' };
   }
 
   if (password.length < 6) {
     return { success: false, message: 'Password must be at least 6 characters long' };
+  }
+
+  if (phone.length < 6) {
+    return { success: false, message: 'Please provide a valid contact phone number' };
   }
 
   const existing = await prisma.user.findUnique({
@@ -71,8 +68,8 @@ export async function signupAction(formData: FormData) {
       name,
       email,
       passwordHash,
-      institution: institution || null,
-      phone: phone || null,
+      institution,
+      phone,
       role: Role.ATTENDEE,
     },
   });
@@ -80,6 +77,40 @@ export async function signupAction(formData: FormData) {
   await setSessionUser(newUser.email);
   revalidatePath('/', 'layout');
   redirect('/events');
+}
+
+export async function updateProfileDetailsAction(formData: FormData) {
+  const currentUser = await getCurrentUser();
+  if (!currentUser) {
+    return { success: false, message: 'Unauthorized: Please sign in to update your profile' };
+  }
+
+  const institution = (formData.get('institution') as string)?.trim();
+  const phone = (formData.get('phone') as string)?.trim();
+
+  if (!institution || !phone) {
+    return { success: false, message: 'Both educational institution and phone number are required' };
+  }
+
+  if (phone.length < 6) {
+    return { success: false, message: 'Please provide a valid contact phone number' };
+  }
+
+  try {
+    await prisma.user.update({
+      where: { id: currentUser.id },
+      data: {
+        institution,
+        phone,
+      },
+    });
+
+    revalidatePath('/', 'layout');
+    return { success: true, message: 'Profile updated successfully' };
+  } catch (error) {
+    console.error('Error updating user profile:', error);
+    return { success: false, message: 'Failed to update profile details' };
+  }
 }
 
 export async function logoutAction() {

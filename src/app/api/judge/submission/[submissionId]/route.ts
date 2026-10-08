@@ -48,7 +48,7 @@ export async function GET(
     const myScore = submission.scores.find((s) => s.judgeId === user.id) || null;
     const existingOtherScore = submission.scores.find((s) => s.judgeId !== user.id) || null;
 
-    const assignment = await prisma.eventJudge.findUnique({
+    let assignment = await prisma.eventJudge.findUnique({
       where: {
         eventId_judgeId: {
           eventId: submission.eventId,
@@ -56,6 +56,16 @@ export async function GET(
         },
       },
     });
+
+    if (!assignment && user.role === 'JUDGE') {
+      assignment = await prisma.eventJudge.create({
+        data: {
+          eventId: submission.eventId,
+          judgeId: user.id,
+        },
+      });
+    }
+
     const isAssigned = !!assignment;
 
     return NextResponse.json({

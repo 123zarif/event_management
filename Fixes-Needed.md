@@ -12,13 +12,13 @@
 - [x] In "/admin/events/new"  the layout to create new event waste some space on left and right size make sure it utilize those space and maybe use grid layout.
 - [x] Allow Not decided / Upcoming or anything else whichever sounds great for this project meaniing allow non-decided date and time also allow both options for date with time or only date.
 - [x] Allow not giving venue or gving venue both meaning show venue if given or dont show if not given.
-- [x ] Allow publishing judging criteria / rulebook publishions later by orgonizors.
+- [x] Allow publishing judging criteria / rulebook publishions later by orgonizors.
 - [x] Allow selecting judges later by orgonizors.
-- [] Show which event was created by whom and when to the orgonizors.
+- [x] Show which event was created by whom and when to the orgonizors.
 - [x] Show which submission was judged by which judge.
-// - [ ] Dont allow 2 judges to evaluate same submission.
-// - [ ] Allow multiple submissions before deadline by attendee.
-- [] Attendee cant see their past submissions,
+- [x] Dont allow 2 judges to evaluate same submission.
+- [x] Allow multiple submissions before deadline by attendee.
+- [x] Attendee cant see their past submissions,
 - [x] Why can Orgonizors see evaluttion page? Dont let them get to that page or show that page.
 - [x] Recent Registrations show Canceled registrations too which might fill with not needed data, So, only show canceled behind a filter.
 - [x] Print badge also shows header of website for some reason... Maybe generate completely new html for printing instead of using the page html source.
@@ -36,7 +36,7 @@
 - [x] show available contests before showing fests in attendee dashboard. 
 - [x] No way for orgonizors to edit contest / events / fest / category etc.
 
-- [] "/fests/freshers-tech-fest-2027/events/test" is 404 not found
-- [] "/" and "/judge" is literally same for judges... make it so '/judge" show extensive ui for easy judging like showing every submission at once etc..
-- [] Dont allow evalute unless claimed by judges.
-- [] why can judge and orginizors see "/my-registrations" in profile dropdown? restrict this url for them and dont show it anywhere.
+- [x] "/fests/freshers-tech-fest-2027/events/test" is 404 not found
+- [x] "/" and "/judge" is literally same for judges... make it so '/judge" show extensive ui for easy judging like showing every submission at once etc..
+- [x] Dont allow evalute unless claimed by judges.
+- [x] why can judge and orginizors see "/my-registrations" in profile dropdown? restrict this url for them and dont show it anywhere.

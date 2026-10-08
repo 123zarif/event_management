@@ -19,9 +19,9 @@ import {
   X,
   Database,
   Plus,
-  Tag
+  Tag,
+  LogIn
 } from 'lucide-react';
-import { switchPersonaAction } from '@/actions/auth';
 
 interface SidebarProps {
   currentUser?: {
@@ -37,10 +37,6 @@ interface SidebarProps {
 export function Sidebar({ currentUser, collapsed, mobileOpen, onCloseMobile }: SidebarProps) {
   const pathname = usePathname();
   const currentRole = currentUser?.role;
-
-  const handlePersonaSwitch = async (email: string) => {
-    await switchPersonaAction(email);
-  };
 
   // Build role-tailored navigation groups (Strict feature invisibility)
   const navGroups: Array<{
@@ -113,6 +109,18 @@ export function Sidebar({ currentUser, collapsed, mobileOpen, onCloseMobile }: S
     });
   }
 
+  // Find single most-specific matching link across all navigation groups
+  const allHrefs = navGroups.flatMap((g) => g.items.map((i) => i.href));
+  const matchingHrefs = allHrefs.filter((href) => {
+    if (href === '/') return pathname === '/';
+    return pathname === href || pathname.startsWith(`${href}/`);
+  });
+  const activeHref = matchingHrefs.length > 0
+    ? matchingHrefs.reduce((longest, current) =>
+        current.length > longest.length ? current : longest
+      )
+    : null;
+
   return (
     <>
       {/* Mobile backdrop */}
@@ -125,7 +133,7 @@ export function Sidebar({ currentUser, collapsed, mobileOpen, onCloseMobile }: S
 
       {/* Sidebar container */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex flex-col border-r border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 transition-all duration-200 ease-in-out lg:static lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 flex flex-col border-r border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 transition-all duration-200 ease-in-out lg:static lg:h-screen lg:shrink-0 lg:translate-x-0 ${
           mobileOpen ? 'translate-x-0 w-72' : '-translate-x-full'
         } ${collapsed ? 'lg:w-16' : 'lg:w-64'}`}
       >
@@ -188,10 +196,7 @@ export function Sidebar({ currentUser, collapsed, mobileOpen, onCloseMobile }: S
               <div className="space-y-0.5">
                 {group.items.map((item) => {
                   const Icon = item.icon;
-                  const isActive =
-                    item.href === '/'
-                      ? pathname === '/'
-                      : pathname === item.href || pathname.startsWith(`${item.href}/`);
+                  const isActive = item.href === activeHref;
 
                   return (
                     <Link
@@ -224,57 +229,34 @@ export function Sidebar({ currentUser, collapsed, mobileOpen, onCloseMobile }: S
           ))}
         </div>
 
-        {/* Footer info & Persona Quick Switching */}
+        {/* Footer info & System Status */}
         <div className="p-3 border-t border-zinc-200 dark:border-zinc-800 space-y-2">
           {!collapsed ? (
             <div className="p-2.5 rounded-lg bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800 space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-mono text-zinc-500 uppercase">Persona Role</span>
-                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-violet-100 dark:bg-violet-950/60 text-violet-700 dark:text-violet-300 border border-violet-200 dark:border-violet-900/50">
+                <span className="text-[10px] font-mono text-zinc-500 uppercase">Station Mode</span>
+                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-violet-100 dark:bg-violet-950/60 text-violet-700 dark:text-violet-300 border border-violet-200 dark:border-violet-900/50 font-semibold">
                   {currentRole || 'GUEST'}
                 </span>
               </div>
-              <div className="grid grid-cols-3 gap-1 pt-1">
-                <button
-                  type="button"
-                  onClick={() => handlePersonaSwitch('student@drmc.edu')}
-                  title="Switch to Student Attendee"
-                  className={`px-1.5 py-1 text-[10px] font-mono rounded border transition-colors ${
-                    currentRole === 'ATTENDEE'
-                      ? 'bg-violet-600 text-white border-violet-600 font-semibold'
-                      : 'bg-white dark:bg-zinc-950 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700'
-                  }`}
+              {currentUser ? (
+                <div className="text-[11px] text-zinc-600 dark:text-zinc-400 truncate">
+                  <span className="font-medium text-zinc-900 dark:text-zinc-200 block truncate">{currentUser.name}</span>
+                  <span className="text-[10px] text-zinc-400 font-mono truncate block">{currentUser.email}</span>
+                </div>
+              ) : (
+                <Link
+                  href="/login"
+                  onClick={onCloseMobile}
+                  className="flex items-center justify-center gap-1.5 w-full py-1.5 px-2 rounded-md bg-violet-600 text-white text-[11px] font-medium hover:bg-violet-700 transition-colors"
                 >
-                  Student
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handlePersonaSwitch('organizer@drmc.edu')}
-                  title="Switch to Club Organizer"
-                  className={`px-1.5 py-1 text-[10px] font-mono rounded border transition-colors ${
-                    currentRole === 'ORGANIZER'
-                      ? 'bg-violet-600 text-white border-violet-600 font-semibold'
-                      : 'bg-white dark:bg-zinc-950 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700'
-                  }`}
-                >
-                  Admin
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handlePersonaSwitch('judge@drmc.edu')}
-                  title="Switch to Contest Judge"
-                  className={`px-1.5 py-1 text-[10px] font-mono rounded border transition-colors ${
-                    currentRole === 'JUDGE'
-                      ? 'bg-violet-600 text-white border-violet-600 font-semibold'
-                      : 'bg-white dark:bg-zinc-950 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700'
-                  }`}
-                >
-                  Judge
-                </button>
-              </div>
+                  <LogIn className="h-3 w-3" />
+                  <span>Sign In</span>
+                </Link>
+              )}
               <div className="flex items-center gap-1.5 text-[9px] text-zinc-400 font-mono pt-1 border-t border-zinc-200 dark:border-zinc-800/60">
                 <Database className="h-3 w-3 text-emerald-500" />
-                <span>Postgres & Redis Online</span>
+                <span>Postgres &amp; Redis Online</span>
               </div>
             </div>
           ) : (

@@ -308,7 +308,7 @@ export default function SubmitProjectPage() {
 
               <div className="p-2.5 rounded bg-violet-50 dark:bg-violet-950/40 border border-violet-200 dark:border-violet-900">
                 <span className="font-semibold text-violet-700 dark:text-violet-300 block">Creative & Bonus (30 pts)</span>
-                <span className="text-[10px] text-violet-600 dark:text-violet-400">Scoreboard freeze, bracket progression, certs</span>
+                <span className="text-[10px] text-violet-600 dark:text-violet-400">Scoreboard freeze, digital certs, queue triage</span>
               </div>
             </div>
 

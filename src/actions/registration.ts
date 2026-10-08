@@ -21,12 +21,23 @@ export async function registerForEvent(
   }
 ): Promise<RegisterResult> {
   try {
-    // 0. Prohibit Organizers and Admins from registering
+    // 0. Prohibit Organizers and Admins from registering & Enforce mandatory profile details
     const caller = await prisma.user.findUnique({ where: { id: userId } });
-    if (caller && (caller.role === 'ORGANIZER' || caller.role === 'ADMIN')) {
+    if (!caller) {
+      return { success: false, message: 'User not found. Please sign in.' };
+    }
+
+    if (caller.role === 'ORGANIZER' || caller.role === 'ADMIN') {
       return { 
         success: false, 
         message: 'Access Denied: Organizers and Administrators cannot register as event participants to ensure fair play.' 
+      };
+    }
+
+    if (!caller.institution?.trim() || !caller.phone?.trim()) {
+      return {
+        success: false,
+        message: 'Profile Incomplete: Educational institution and contact phone number are required before participating in events.'
       };
     }
 

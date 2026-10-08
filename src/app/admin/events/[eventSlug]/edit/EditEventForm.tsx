@@ -3,8 +3,9 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { updateEvent, JudgingCriterionInput } from '@/actions/events';
+import { updateEvent, deleteEvent, JudgingCriterionInput } from '@/actions/events';
 import { createCategory } from '@/actions/categories';
+import { DeleteConfirmationModal } from '@/components/DeleteConfirmationModal';
 import { EventCategory } from '@prisma/client';
 import { 
   ArrowLeft, 
@@ -22,7 +23,8 @@ import {
   X,
   Image as ImageIcon,
   Eye,
-  EyeOff
+  EyeOff,
+  AlertCircle
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -145,6 +147,8 @@ export function EditEventForm({
   );
 
   const [submitting, setSubmitting] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   // PDF File Selection and Upload
   const handlePdfSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -252,6 +256,11 @@ export function EditEventForm({
     } finally {
       setUploadingBanner(false);
     }
+  };
+
+  const removeBanner = () => {
+    setBannerUrl('');
+    setBannerError('');
   };
 
   // Criteria operations
@@ -396,6 +405,26 @@ export function EditEventForm({
     }
   };
 
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      const res = await deleteEvent(event.id);
+      if (!res.success) {
+        toast.error(res.message);
+        setDeleting(false);
+        return;
+      }
+
+      toast.success(res.message);
+      setShowDeleteModal(false);
+      router.push('/admin');
+    } catch (err: unknown) {
+      const error = err as Error;
+      toast.error(error.message || 'Failed to delete track.');
+      setDeleting(false);
+    }
+  };
+
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
       {/* 1. Header Bar */}
@@ -423,6 +452,15 @@ export function EditEventForm({
         </div>
 
         <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setShowDeleteModal(true)}
+            className="px-3.5 py-2 rounded-md text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 border border-rose-200 dark:border-rose-900/60 transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
+            title="Permanently delete this competition track"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            <span>Delete Track</span>
+          </button>
           <Link
             href={`/events/${event.slug}`}
             className="px-4 py-2 rounded-md text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 transition-colors"
@@ -991,62 +1029,119 @@ export function EditEventForm({
 
           {/* Banner Graphic Artwork */}
           <div className="p-5 rounded-xl bg-white dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-800 space-y-4 shadow-xs">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 font-mono flex items-center gap-2">
-              <ImageIcon className="h-3.5 w-3.5 text-violet-600 dark:text-violet-400" />
-              Contest Card Banner
-            </h2>
-
-            <div>
-              <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">
-                Upload Banner Image or Paste URL
-              </label>
-              <div className="space-y-2">
-                <input
-                  type="file"
-                  id="bannerUploadEdit"
-                  accept="image/png,image/jpeg,image/webp"
-                  onChange={handleBannerSelect}
-                  className="hidden"
-                  disabled={uploadingBanner}
-                />
-                <label
-                  htmlFor="bannerUploadEdit"
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-zinc-100 dark:bg-zinc-900 hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-800 dark:text-zinc-200 cursor-pointer transition-colors border border-zinc-200 dark:border-zinc-800"
-                >
-                  {uploadingBanner ? (
-                    <>
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      <span>Uploading banner...</span>
-                    </>
-                  ) : (
-                    <>
-                      <UploadCloud className="h-3.5 w-3.5 text-violet-600" />
-                      <span>Upload Image File</span>
-                    </>
-                  )}
-                </label>
-                {bannerError && <p className="text-xs text-rose-500">{bannerError}</p>}
-                <input
-                  type="url"
-                  value={bannerUrl}
-                  onChange={(e) => setBannerUrl(e.target.value)}
-                  placeholder="Or paste image URL (https://...)"
-                  className="w-full px-3 py-2 rounded-md bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs text-zinc-900 dark:text-zinc-100 focus:border-violet-600 outline-none"
-                />
-              </div>
+            <div className="flex items-center justify-between">
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 font-mono flex items-center gap-2">
+                <ImageIcon className="h-3.5 w-3.5 text-violet-600 dark:text-violet-400" />
+                Contest Card Banner
+              </h2>
+              <span className="text-[10px] text-zinc-500 font-mono">PNG, JPG, WEBP (Max 10MB)</span>
             </div>
 
-            {bannerUrl && (
-              <div className="rounded-lg overflow-hidden border border-zinc-200 dark:border-zinc-800 aspect-video relative bg-zinc-950">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={bannerUrl}
-                  alt="Banner preview"
-                  className="w-full h-full object-cover"
-                />
+            {!bannerUrl ? (
+              <div>
+                <label className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-zinc-200 dark:border-zinc-800 hover:border-violet-500/80 rounded-xl cursor-pointer bg-zinc-50/50 dark:bg-zinc-950/40 transition-colors group">
+                  <div className="w-10 h-10 rounded-full bg-violet-50 dark:bg-violet-950/60 text-violet-600 dark:text-violet-400 flex items-center justify-center mb-2 group-hover:scale-105 transition-transform">
+                    {uploadingBanner ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <UploadCloud className="w-5 h-5" />
+                    )}
+                  </div>
+                  <p className="text-xs font-semibold text-zinc-800 dark:text-zinc-200">
+                    {uploadingBanner ? 'Verifying and uploading banner...' : 'Click to select or drag and drop contest banner'}
+                  </p>
+                  <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+                    Standard 16:9 banner artwork displayed on contest cards, leaderboards, and contest hub.
+                  </p>
+                  <input
+                    type="file"
+                    accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp"
+                    onChange={handleBannerSelect}
+                    disabled={uploadingBanner}
+                    className="hidden"
+                  />
+                </label>
+                {bannerError && (
+                  <p className="text-xs text-rose-600 dark:text-rose-400 mt-2 flex items-center gap-1.5">
+                    <AlertCircle className="h-3.5 w-3.5" />
+                    {bannerError}
+                  </p>
+                )}
+              </div>
+            ) : (
+              <div className="rounded-xl overflow-hidden border border-zinc-200 dark:border-zinc-800 bg-zinc-950 shadow-xs">
+                <div className="relative aspect-video w-full max-h-56 overflow-hidden">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={bannerUrl}
+                    alt="Banner Preview"
+                    className="w-full h-full object-cover object-center"
+                  />
+                </div>
+                <div className="p-3 bg-white dark:bg-zinc-900 border-t border-zinc-200 dark:border-zinc-800 flex items-center justify-between text-xs">
+                  <span className="text-[11px] font-mono text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    Banner Attached
+                  </span>
+                  <div className="flex items-center gap-3">
+                    <label className="text-xs text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200 flex items-center gap-1 font-medium cursor-pointer">
+                      <input
+                        type="file"
+                        accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp"
+                        onChange={handleBannerSelect}
+                        disabled={uploadingBanner}
+                        className="hidden"
+                      />
+                      {uploadingBanner ? (
+                        <>
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                          <span>Uploading...</span>
+                        </>
+                      ) : (
+                        <span>Replace Image</span>
+                      )}
+                    </label>
+                    <button
+                      type="button"
+                      onClick={removeBanner}
+                      className="text-xs text-rose-600 hover:text-rose-700 dark:text-rose-400 flex items-center gap-1 font-medium cursor-pointer"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      Remove
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
           </div>
+        </div>
+      </div>
+
+      {/* Danger Zone */}
+      <div className="rounded-xl border border-rose-500/30 dark:border-rose-900/40 bg-rose-500/5 dark:bg-rose-950/20 p-5 space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-mono uppercase font-bold px-2 py-0.5 rounded bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
+                Danger Zone
+              </span>
+            </div>
+            <h3 className="text-base font-bold text-zinc-900 dark:text-zinc-100">
+              Delete this Competition Track
+            </h3>
+            <p className="text-xs text-zinc-600 dark:text-zinc-400 max-w-2xl">
+              Permanently delete <strong className="text-zinc-800 dark:text-zinc-200">{event.title}</strong> and all associated attendee registrations, project submissions, team rosters, and judge scores.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setShowDeleteModal(true)}
+            className="px-4 py-2 rounded-lg text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white transition-colors cursor-pointer flex items-center justify-center gap-1.5 shadow-xs flex-shrink-0"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            <span>Delete Track</span>
+          </button>
         </div>
       </div>
 
@@ -1136,6 +1231,22 @@ export function EditEventForm({
           </div>
         </div>
       )}
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmationModal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        onConfirm={handleDelete}
+        title="Delete Competition Track"
+        itemName={event.title}
+        expectedSlug={event.slug}
+        impactNotice={
+          <p>
+            Permanently deletes <strong className="font-semibold text-rose-700 dark:text-rose-300">{event.title}</strong> and wipes all contestant registrations, submissions, and judge scorecards.
+          </p>
+        }
+        isDeleting={deleting}
+      />
     </form>
   );
 }

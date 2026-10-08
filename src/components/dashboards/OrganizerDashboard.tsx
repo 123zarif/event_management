@@ -180,7 +180,7 @@ export async function OrganizerDashboard({ currentUser }: OrganizerDashboardProp
               Event Track Capacity & Operations
             </h2>
             <p className="text-xs text-zinc-500 mt-0.5">
-              Live capacity meters, badge printing sheets, and tournament bracket progression.
+              Live capacity meters, badge printing sheets, and certified judge evaluation rosters.
             </p>
           </div>
           <Link
@@ -248,21 +248,12 @@ export async function OrganizerDashboard({ currentUser }: OrganizerDashboardProp
                     <span>Print Badges</span>
                   </Link>
 
-                  {ev.category === 'GAMING' || ev.category === 'ROBOTICS' ? (
-                    <Link
-                      href={`/admin/competitions/${ev.slug}/brackets`}
-                      className="inline-flex items-center gap-1 text-violet-600 dark:text-violet-400 hover:underline font-medium"
-                    >
-                      <span>Brackets →</span>
-                    </Link>
-                  ) : (
-                    <Link
-                      href={`/events/${ev.slug}/leaderboard`}
-                      className="inline-flex items-center gap-1 text-violet-600 dark:text-violet-400 hover:underline font-medium"
-                    >
-                      <span>Standings →</span>
-                    </Link>
-                  )}
+                  <Link
+                    href={`/events/${ev.slug}/leaderboard`}
+                    className="inline-flex items-center gap-1 text-violet-600 dark:text-violet-400 hover:underline font-medium"
+                  >
+                    <span>Standings →</span>
+                  </Link>
                 </div>
               </div>
             );

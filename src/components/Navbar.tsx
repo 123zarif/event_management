@@ -15,7 +15,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen
 } from 'lucide-react';
-import { switchPersonaAction, logoutAction } from '@/actions/auth';
+import { logoutAction } from '@/actions/auth';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { FestSwitcher } from '@/components/FestSwitcher';
 
@@ -39,11 +39,6 @@ export function Navbar({
   onOpenMobileSidebar,
 }: NavbarProps) {
   const [personaDropdownOpen, setPersonaDropdownOpen] = useState(false);
-
-  const handlePersonaSwitch = async (email: string) => {
-    setPersonaDropdownOpen(false);
-    await switchPersonaAction(email);
-  };
 
   const handleLogout = async () => {
     setPersonaDropdownOpen(false);
@@ -166,51 +161,6 @@ export function Navbar({
                         <span>Judge Evaluation Portal</span>
                       </Link>
                     )}
-                  </div>
-
-                  {/* Instant Persona Switcher */}
-                  <div className="py-1">
-                    <p className="px-2 py-1 text-[10px] uppercase tracking-wider text-zinc-400 font-mono font-semibold">
-                      Fast Persona Switcher
-                    </p>
-                    <div className="space-y-1">
-                      <button
-                        type="button"
-                        onClick={() => handlePersonaSwitch('organizer@drmc.edu')}
-                        className={`w-full flex items-center justify-between px-2 py-1.5 rounded text-left hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors ${
-                          currentRole === 'ORGANIZER'
-                            ? 'bg-violet-50 dark:bg-violet-950/40 text-violet-700 dark:text-violet-300 font-semibold'
-                            : 'text-zinc-700 dark:text-zinc-300'
-                        }`}
-                      >
-                        <span>Club Organizer</span>
-                        <span className="text-[10px] text-zinc-400 font-mono">organizer@drmc.edu</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handlePersonaSwitch('judge@drmc.edu')}
-                        className={`w-full flex items-center justify-between px-2 py-1.5 rounded text-left hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors ${
-                          currentRole === 'JUDGE'
-                            ? 'bg-violet-50 dark:bg-violet-950/40 text-violet-700 dark:text-violet-300 font-semibold'
-                            : 'text-zinc-700 dark:text-zinc-300'
-                        }`}
-                      >
-                        <span>Contest Judge</span>
-                        <span className="text-[10px] text-zinc-400 font-mono">judge@drmc.edu</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handlePersonaSwitch('student@drmc.edu')}
-                        className={`w-full flex items-center justify-between px-2 py-1.5 rounded text-left hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors ${
-                          currentRole === 'ATTENDEE'
-                            ? 'bg-violet-50 dark:bg-violet-950/40 text-violet-700 dark:text-violet-300 font-semibold'
-                            : 'text-zinc-700 dark:text-zinc-300'
-                        }`}
-                      >
-                        <span>Student Attendee</span>
-                        <span className="text-[10px] text-zinc-400 font-mono">student@drmc.edu</span>
-                      </button>
-                    </div>
                   </div>
 
                   {/* Sign Out */}

@@ -1,4 +1,5 @@
 import React from 'react';
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
@@ -10,6 +11,27 @@ export const dynamic = 'force-dynamic';
 interface TicketPageProps {
   params: Promise<{ ticketCode: string }>;
   searchParams: Promise<{ new?: string }>;
+}
+
+export async function generateMetadata({ params }: TicketPageProps): Promise<Metadata> {
+  const { ticketCode } = await params;
+  const registration = await prisma.registration.findUnique({
+    where: { ticketCode },
+    include: { event: true },
+  });
+
+  if (!registration) {
+    return { title: 'Ticket Pass' };
+  }
+
+  return {
+    title: `Ticket Pass: ${registration.event.title}`,
+    description: `Official digital admission pass and verification QR for ${registration.event.title}.`,
+    robots: {
+      index: false,
+      follow: false,
+    },
+  };
 }
 
 export default async function TicketPage({ params, searchParams }: TicketPageProps) {
