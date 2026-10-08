@@ -69,6 +69,22 @@ services:
     depends_on:
       - web
 
+  seed:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+    container_name: clubsphere-seed
+    restart: "no"
+    profiles:
+      - tools
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: ${DOCKER_DATABASE_URL:-postgresql://${POSTGRES_USER:-clubsphere}:${POSTGRES_PASSWORD:-clubsphere_secure_password}@postgres:5432/${POSTGRES_DB:-clubsphere_db}?schema=public}
+    command: ["npx", "tsx", "scripts/seed-production.ts"]
+
 volumes:
   postgres_data:
   redis_data:
