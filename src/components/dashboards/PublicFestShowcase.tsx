@@ -6,14 +6,12 @@ import { EventCard } from '@/components/EventCard';
 import { 
   Trophy, 
   Calendar, 
-  CheckCircle2, 
   ArrowRight, 
   ShieldCheck, 
   Zap, 
   Users, 
   QrCode,
   FileCheck,
-  Activity,
   LogIn,
   UserPlus
 } from 'lucide-react';
@@ -36,7 +34,6 @@ export async function PublicFestShowcase() {
   const totalRegistrations = await prisma.registration.count();
   const totalEvents = await prisma.event.count();
   const totalFests = await prisma.fest.count();
-  const totalSubmissions = await prisma.submission.count();
 
   const featuredContest = flagshipFest?.events.find(
     (e) => e.slug === 'ai-web-development-contest'
@@ -84,7 +81,7 @@ export async function PublicFestShowcase() {
         </div>
 
         {/* Operational Metric Counters */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6 pt-6 border-t border-zinc-200 dark:border-zinc-800/80">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6 pt-6 border-t border-zinc-200 dark:border-zinc-800/80">
           <div className="p-4 rounded-lg bg-white dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-800 shadow-xs">
             <div className="flex items-center justify-between text-zinc-500 dark:text-zinc-400 mb-1">
               <span className="text-[11px] font-mono uppercase">Live Fests</span>
@@ -110,18 +107,6 @@ export async function PublicFestShowcase() {
             </div>
             <p className="text-2xl font-bold text-violet-600 dark:text-violet-400">{totalRegistrations}</p>
             <p className="text-[10px] text-zinc-500 mt-0.5">Atomic Postgres & Redis locks</p>
-          </div>
-
-          <div className="p-4 rounded-lg bg-white dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-800 shadow-xs">
-            <div className="flex items-center justify-between text-zinc-500 dark:text-zinc-400 mb-1">
-              <span className="text-[11px] font-mono uppercase">System Health</span>
-              <Activity className="h-3.5 w-3.5 text-emerald-500" />
-            </div>
-            <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 mt-1 flex items-center gap-1.5">
-              <CheckCircle2 className="h-4 w-4" />
-              Postgres + Redis 100% OK
-            </p>
-            <p className="text-[10px] text-zinc-500 mt-0.5">{totalSubmissions} submissions evaluated</p>
           </div>
         </div>
       </section>

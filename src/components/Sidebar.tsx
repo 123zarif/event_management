@@ -3,6 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { SidebarFestSwitcher } from '@/components/SidebarFestSwitcher';
 import {
   Trophy,
   Calendar,
@@ -169,20 +170,14 @@ export function Sidebar({ currentUser, collapsed, mobileOpen, onCloseMobile }: S
           </button>
         </div>
 
-        {/* Fest Status Pill */}
-        {!collapsed && (
-          <div className="p-3 border-b border-zinc-100 dark:border-zinc-900">
-            <div className="flex items-center justify-between p-2 rounded-md bg-zinc-50 dark:bg-zinc-900/60 border border-zinc-200/80 dark:border-zinc-800/80 text-[11px]">
-              <div className="flex items-center gap-2 min-w-0">
-                <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-                <span className="font-medium text-zinc-800 dark:text-zinc-200 truncate">
-                  9th Tech Carnival
-                </span>
-              </div>
-              <span className="text-[10px] font-mono text-zinc-400 shrink-0">Live</span>
-            </div>
-          </div>
-        )}
+        {/* Interactive Festival Switcher */}
+        <div className={`border-b border-zinc-100 dark:border-zinc-900 ${collapsed ? 'p-2 flex justify-center' : 'p-3'}`}>
+          <SidebarFestSwitcher
+            collapsed={collapsed}
+            currentUser={currentUser}
+            onSelect={onCloseMobile}
+          />
+        </div>
 
         {/* Navigation Groups (Filtered strictly by role) */}
         <div className="flex-1 overflow-y-auto px-3 py-3 space-y-5">

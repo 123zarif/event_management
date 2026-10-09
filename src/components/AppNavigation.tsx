@@ -64,7 +64,7 @@ export function AppNavigation({ currentUser, children }: AppNavigationProps) {
           </main>
 
           {/* Full-width Footer */}
-          <Footer />
+          <Footer currentUser={currentUser} />
         </div>
       </div>
 

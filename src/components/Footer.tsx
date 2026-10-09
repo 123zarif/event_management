@@ -1,7 +1,19 @@
 import React from 'react';
 import Link from 'next/link';
 
-export function Footer() {
+interface FooterProps {
+  currentUser?: {
+    name: string;
+    email: string;
+    role: string;
+  } | null;
+}
+
+export function Footer({ currentUser }: FooterProps = {}) {
+  const isAttendee = currentUser?.role === 'ATTENDEE';
+  const isJudge = currentUser?.role === 'JUDGE';
+  const isOrganizer = currentUser?.role === 'ORGANIZER' || currentUser?.role === 'ADMIN';
+
   return (
     <footer className="mt-auto border-t border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 py-8 text-xs text-zinc-600 dark:text-zinc-400 no-print transition-colors">
       <div className="w-full px-4 sm:px-6 lg:px-8">
@@ -30,12 +42,34 @@ export function Footer() {
             <Link href="/verify-certificate" className="hover:text-zinc-900 dark:hover:text-zinc-200 transition-colors">
               Verify Certificate
             </Link>
-            <Link href="/login" className="hover:text-zinc-900 dark:hover:text-zinc-200 transition-colors font-medium">
-              Sign In
-            </Link>
-            <Link href="/admin" className="text-violet-600 dark:text-violet-400 hover:underline font-medium">
-              Organizer Portal
-            </Link>
+            {currentUser ? (
+              <>
+                {isAttendee && (
+                  <Link href="/my-registrations" className="hover:text-zinc-900 dark:hover:text-zinc-200 transition-colors font-medium">
+                    My Passes
+                  </Link>
+                )}
+                {isJudge && (
+                  <Link href="/judge" className="hover:text-zinc-900 dark:hover:text-zinc-200 transition-colors font-medium">
+                    Judge Workstation
+                  </Link>
+                )}
+                {isOrganizer && (
+                  <Link href="/admin" className="text-violet-600 dark:text-violet-400 hover:underline font-medium">
+                    Organizer Portal
+                  </Link>
+                )}
+              </>
+            ) : (
+              <>
+                <Link href="/login" className="hover:text-zinc-900 dark:hover:text-zinc-200 transition-colors font-medium">
+                  Sign In
+                </Link>
+                <Link href="/admin" className="text-violet-600 dark:text-violet-400 hover:underline font-medium">
+                  Organizer Portal
+                </Link>
+              </>
+            )}
           </div>
         </div>
 
