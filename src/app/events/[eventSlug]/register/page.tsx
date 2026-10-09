@@ -74,7 +74,7 @@ export default function EventRegisterPage() {
 
       if (!userId) {
         toast.error('Please sign in to register for this event');
-        router.push('/login');
+        router.push(`/login?callbackUrl=${encodeURIComponent(`/events/${eventSlug}/register`)}`);
         return;
       }
 

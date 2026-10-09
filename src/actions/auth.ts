@@ -12,6 +12,7 @@ import { redirect } from 'next/navigation';
 export async function loginAction(formData: FormData) {
   const email = (formData.get('email') as string)?.trim().toLowerCase();
   const password = formData.get('password') as string;
+  const callbackUrl = (formData.get('callbackUrl') as string)?.trim();
 
   if (!email || !password) {
     return { success: false, message: 'Please provide both email and password' };
@@ -24,6 +25,10 @@ export async function loginAction(formData: FormData) {
 
   await setSessionUser(user.email);
   revalidatePath('/', 'layout');
+
+  if (callbackUrl && callbackUrl.startsWith('/') && !callbackUrl.startsWith('//')) {
+    redirect(callbackUrl);
+  }
 
   if (user.role === 'ORGANIZER' || user.role === 'ADMIN') {
     redirect('/admin');
@@ -40,6 +45,7 @@ export async function signupAction(formData: FormData) {
   const password = formData.get('password') as string;
   const institution = (formData.get('institution') as string)?.trim();
   const phone = (formData.get('phone') as string)?.trim();
+  const callbackUrl = (formData.get('callbackUrl') as string)?.trim();
 
   if (!name || !email || !password || !institution || !phone) {
     return { success: false, message: 'Please provide full name, email, password, institution, and phone number' };
@@ -76,7 +82,12 @@ export async function signupAction(formData: FormData) {
 
   await setSessionUser(newUser.email);
   revalidatePath('/', 'layout');
-  redirect('/events');
+
+  if (callbackUrl && callbackUrl.startsWith('/') && !callbackUrl.startsWith('//')) {
+    redirect(callbackUrl);
+  } else {
+    redirect('/events');
+  }
 }
 
 export async function updateProfileDetailsAction(formData: FormData) {

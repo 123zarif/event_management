@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -76,49 +76,76 @@ export function SubNavbar({ currentUser }: SubNavbarProps) {
       )
     : null;
 
+  const activeTabRef = useRef<HTMLAnchorElement>(null);
+  const navContainerRef = useRef<HTMLDivElement>(null);
+
+  // Automatically scroll active tab into view on mobile/desktop
+  useEffect(() => {
+    if (activeTabRef.current && navContainerRef.current) {
+      activeTabRef.current.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+        inline: 'center',
+      });
+    }
+  }, [activeTabHref]);
+
   return (
-    <div className="w-full border-b border-zinc-200 dark:border-zinc-800 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-xs px-4 sm:px-6 lg:px-8 overflow-x-auto scrollbar-none transition-colors">
-      <nav className="flex items-center gap-1 sm:gap-2 h-10 min-w-max">
-        {tabs.map((tab) => {
-          const Icon = tab.icon;
-          const isActive = tab.href === activeTabHref;
+    <div className="relative w-full border-b border-zinc-200 dark:border-zinc-800 bg-white/90 dark:bg-zinc-950/90 backdrop-blur-md transition-colors">
+      {/* Left subtle scroll hint gradient on mobile */}
+      <div className="pointer-events-none absolute left-0 inset-y-0 w-3 bg-gradient-to-r from-white dark:from-zinc-950 to-transparent sm:hidden z-10" />
 
-          return (
-            <Link
-              key={tab.href}
-              href={tab.href}
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all relative whitespace-nowrap ${
-                isActive
-                  ? 'bg-zinc-100 dark:bg-zinc-900 text-violet-600 dark:text-violet-400 font-semibold'
-                  : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-900/50'
-              }`}
-            >
-              <Icon className={`h-3.5 w-3.5 ${isActive ? 'text-violet-600 dark:text-violet-400' : 'text-zinc-500'}`} />
-              <span>{tab.label}</span>
+      {/* Horizontally scrollable tab bar */}
+      <div
+        ref={navContainerRef}
+        className="w-full px-3 sm:px-6 lg:px-8 overflow-x-auto scrollbar-none touch-pan-x overscroll-x-contain"
+      >
+        <nav className="flex items-center gap-1 sm:gap-2 h-9 sm:h-10 min-w-max">
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = tab.href === activeTabHref;
 
-              {tab.highlight && (
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              )}
+            return (
+              <Link
+                key={tab.href}
+                ref={isActive ? activeTabRef : undefined}
+                href={tab.href}
+                className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 text-xs font-medium rounded-md transition-all relative whitespace-nowrap ${
+                  isActive
+                    ? 'bg-zinc-100 dark:bg-zinc-900 text-violet-600 dark:text-violet-400 font-semibold'
+                    : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-900/50'
+                }`}
+              >
+                <Icon className={`h-3.5 w-3.5 ${isActive ? 'text-violet-600 dark:text-violet-400' : 'text-zinc-500'}`} />
+                <span>{tab.label}</span>
 
-              {tab.badge && (
-                <span className="text-[9px] font-mono px-1 py-0.2 rounded bg-zinc-200/80 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400">
-                  {tab.badge}
-                </span>
-              )}
+                {tab.highlight && (
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                )}
 
-              {tab.count && (
-                <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-violet-100 dark:bg-violet-950/80 text-violet-700 dark:text-violet-300">
-                  {tab.count}
-                </span>
-              )}
+                {tab.badge && (
+                  <span className="text-[9px] font-mono px-1 py-0.2 rounded bg-zinc-200/80 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400">
+                    {tab.badge}
+                  </span>
+                )}
 
-              {isActive && (
-                <span className="absolute bottom-0 inset-x-2 h-0.5 bg-violet-600 dark:bg-violet-400 rounded-t-full" />
-              )}
-            </Link>
-          );
-        })}
-      </nav>
+                {tab.count && (
+                  <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-violet-100 dark:bg-violet-950/80 text-violet-700 dark:text-violet-300">
+                    {tab.count}
+                  </span>
+                )}
+
+                {isActive && (
+                  <span className="absolute bottom-0 inset-x-2 h-0.5 bg-violet-600 dark:bg-violet-400 rounded-t-full" />
+                )}
+              </Link>
+            );
+          })}
+        </nav>
+      </div>
+
+      {/* Right subtle scroll hint gradient on mobile */}
+      <div className="pointer-events-none absolute right-0 inset-y-0 w-4 bg-gradient-to-l from-white dark:from-zinc-950 to-transparent sm:hidden z-10" />
     </div>
   );
 }

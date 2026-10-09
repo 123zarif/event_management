@@ -135,7 +135,7 @@ export function Sidebar({ currentUser, collapsed, mobileOpen, onCloseMobile }: S
       {/* Sidebar container */}
       <aside
         className={`fixed inset-y-0 left-0 z-50 flex flex-col border-r border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 transition-all duration-200 ease-in-out lg:static lg:h-screen lg:shrink-0 lg:translate-x-0 ${
-          mobileOpen ? 'translate-x-0 w-72' : '-translate-x-full'
+          mobileOpen ? 'translate-x-0 w-72 max-w-[85vw]' : '-translate-x-full'
         } ${collapsed ? 'lg:w-16' : 'lg:w-64'}`}
       >
         {/* Brand Header */}
@@ -163,7 +163,7 @@ export function Sidebar({ currentUser, collapsed, mobileOpen, onCloseMobile }: S
           {/* Close button on mobile */}
           <button
             onClick={onCloseMobile}
-            className="p-1 rounded-md text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 lg:hidden"
+            className="flex h-8 w-8 items-center justify-center rounded-md text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-900 lg:hidden transition-colors cursor-pointer"
             aria-label="Close sidebar"
           >
             <X className="h-5 w-5" />

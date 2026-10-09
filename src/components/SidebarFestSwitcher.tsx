@@ -268,3 +268,4 @@ export function SidebarFestSwitcher({ collapsed, currentUser, onSelect }: Sideba
     </div>
   );
 }
+

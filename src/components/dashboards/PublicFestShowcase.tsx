@@ -16,8 +16,14 @@ import {
   UserPlus
 } from 'lucide-react';
 import { formatDateTime } from '@/lib/utils';
+import { getCurrentUser, AuthUser } from '@/lib/auth';
 
-export async function PublicFestShowcase() {
+interface PublicFestShowcaseProps {
+  currentUser?: AuthUser | null;
+}
+
+export async function PublicFestShowcase({ currentUser: propUser }: PublicFestShowcaseProps = {}) {
+  const currentUser = propUser !== undefined ? propUser : await getCurrentUser();
   const flagshipFest = await prisma.fest.findUnique({
     where: { slug: 'tech-carnival-2026' },
     include: {
@@ -62,22 +68,51 @@ export async function PublicFestShowcase() {
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2.5 shrink-0">
-            <Link
-              href="/register"
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-xs font-semibold bg-violet-600 text-white hover:bg-violet-700 dark:hover:bg-violet-500 transition-colors shadow-xs"
-            >
-              <UserPlus className="h-4 w-4" />
-              Register as Contestant
-            </Link>
-            <Link
-              href="/login"
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-xs font-semibold bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors shadow-xs"
-            >
-              <LogIn className="h-4 w-4 text-violet-600 dark:text-violet-400" />
-              Sign In (Demo Switcher)
-            </Link>
-          </div>
+          {currentUser ? (
+            <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+              <Link
+                href={
+                  currentUser.role === 'ORGANIZER' || currentUser.role === 'ADMIN'
+                    ? '/admin'
+                    : currentUser.role === 'JUDGE'
+                    ? '/judge'
+                    : '/my-registrations'
+                }
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-xs font-semibold bg-violet-600 text-white hover:bg-violet-700 dark:hover:bg-violet-500 transition-colors shadow-xs"
+              >
+                <ArrowRight className="h-4 w-4" />
+                {currentUser.role === 'ORGANIZER' || currentUser.role === 'ADMIN'
+                  ? 'Organizer Control Center'
+                  : currentUser.role === 'JUDGE'
+                  ? 'Judge Scoring Portal'
+                  : 'My Registration Passes'}
+              </Link>
+              <Link
+                href="/events"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-xs font-semibold bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors shadow-xs"
+              >
+                <Trophy className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+                Browse Competitions
+              </Link>
+            </div>
+          ) : (
+            <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+              <Link
+                href="/register"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-xs font-semibold bg-violet-600 text-white hover:bg-violet-700 dark:hover:bg-violet-500 transition-colors shadow-xs"
+              >
+                <UserPlus className="h-4 w-4" />
+                Register as Contestant
+              </Link>
+              <Link
+                href="/login"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-xs font-semibold bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors shadow-xs"
+              >
+                <LogIn className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+                Sign In (Demo Switcher)
+              </Link>
+            </div>
+          )}
         </div>
 
         {/* Operational Metric Counters */}

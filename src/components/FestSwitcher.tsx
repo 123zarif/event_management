@@ -82,24 +82,35 @@ export function FestSwitcher({ currentUser }: FestSwitcherProps) {
       {/* Interactive Context Trigger Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-2.5 py-1 rounded-md bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors cursor-pointer group"
+        className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-2.5 py-1 rounded-md bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors cursor-pointer group"
         title="Switch Active Festival / Event Context"
+        aria-label="Switch festival context"
+        aria-expanded={isOpen}
       >
         <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
         <span className="font-semibold text-zinc-800 dark:text-zinc-200 hidden sm:inline">
           {activeFest?.organizationName || 'DRMC IT Club'}
         </span>
         <span className="text-zinc-400 hidden sm:inline">/</span>
-        <span className="text-violet-600 dark:text-violet-400 font-medium truncate max-w-[140px] sm:max-w-[200px]">
+        <span className="text-violet-600 dark:text-violet-400 font-medium truncate max-w-[100px] min-[420px]:max-w-[130px] sm:max-w-[200px]">
           {activeFest?.title || '9th Tech Carnival 2026'}
         </span>
         <ChevronDown className="h-3 w-3 text-zinc-400 group-hover:text-zinc-600 dark:group-hover:text-zinc-200 transition-colors shrink-0" />
       </button>
 
+      {/* Mobile Backdrop when open */}
+      {isOpen && (
+        <div
+          onClick={() => setIsOpen(false)}
+          className="fixed inset-0 z-40 bg-zinc-950/40 backdrop-blur-xs sm:hidden"
+          aria-hidden="true"
+        />
+      )}
+
       {/* Dropdown Menu */}
       {isOpen && (
-        <div className="absolute left-0 mt-2 w-80 sm:w-96 rounded-xl bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 shadow-2xl p-2 z-50 space-y-1 animate-in fade-in zoom-in-95 duration-100 text-xs">
-          <div className="flex items-center justify-between px-2 py-1.5 border-b border-zinc-100 dark:border-zinc-900 text-[10px] font-mono uppercase tracking-wider text-zinc-500 font-semibold">
+        <div className="fixed inset-x-3 top-16 sm:inset-x-auto sm:absolute sm:left-0 sm:top-full sm:mt-2 w-auto sm:w-88 rounded-xl bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 shadow-2xl p-2 z-50 space-y-1 animate-in fade-in zoom-in-95 duration-100 text-xs max-h-[calc(100vh-5rem)] overflow-hidden flex flex-col">
+          <div className="flex items-center justify-between px-2 py-1.5 border-b border-zinc-100 dark:border-zinc-900 text-[10px] font-mono uppercase tracking-wider text-zinc-500 font-semibold shrink-0">
             <span className="flex items-center gap-1.5">
               <Calendar className="h-3 w-3 text-violet-500" />
               Overarching Carnivals & Fests
@@ -110,7 +121,7 @@ export function FestSwitcher({ currentUser }: FestSwitcherProps) {
           </div>
 
           {/* List of Fests */}
-          <div className="max-h-72 overflow-y-auto space-y-1 py-1">
+          <div className="flex-1 overflow-y-auto max-h-72 space-y-1 py-1">
             {fests.map((fest) => {
               const isSelected = fest.slug === activeSlug;
               return (
@@ -149,7 +160,7 @@ export function FestSwitcher({ currentUser }: FestSwitcherProps) {
           </div>
 
           {/* Organizer Quick Actions at bottom of dropdown */}
-          <div className="pt-1.5 border-t border-zinc-100 dark:border-zinc-900 space-y-1">
+          <div className="pt-1.5 border-t border-zinc-100 dark:border-zinc-900 space-y-1 shrink-0">
             {isOrganizer && (
               <Link
                 href="/admin/fests/new"

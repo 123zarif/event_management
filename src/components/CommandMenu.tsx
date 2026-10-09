@@ -78,22 +78,23 @@ export function CommandMenu({ isOpen, onClose, currentUser }: CommandMenuProps) 
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-20 px-4 bg-zinc-950/70 backdrop-blur-xs animate-in fade-in duration-150">
+    <div className="fixed inset-0 z-50 flex items-start justify-center pt-12 sm:pt-20 px-3 sm:px-4 bg-zinc-950/70 backdrop-blur-xs animate-in fade-in duration-150">
       <div className="relative w-full max-w-xl rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-2xl overflow-hidden">
         {/* Search Input Bar */}
-        <div className="flex items-center px-4 border-b border-zinc-200 dark:border-zinc-800">
-          <Search className="h-4 w-4 text-zinc-400 mr-3 shrink-0" />
+        <div className="flex items-center px-3.5 sm:px-4 border-b border-zinc-200 dark:border-zinc-800">
+          <Search className="h-4 w-4 text-zinc-400 mr-2.5 sm:mr-3 shrink-0" />
           <input
             type="text"
             autoFocus
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Type a command, competition name, fest, or section..."
+            placeholder="Search competitions, fests, tools..."
             className="w-full py-3.5 bg-transparent text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 outline-none"
           />
           <button
             onClick={onClose}
-            className="p-1 rounded-md text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors ml-2"
+            className="flex h-8 w-8 items-center justify-center rounded-md text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors ml-1 sm:ml-2 shrink-0 cursor-pointer"
+            aria-label="Close search"
           >
             <X className="h-4 w-4" />
           </button>

@@ -5,6 +5,20 @@
 > **Live Production URL:** [https://zarifzuhayer.tech](https://zarifzuhayer.tech)  
 > **License:** MIT License (Open Source)
 
+<div align="center">
+
+[![Production Live](https://img.shields.io/badge/Production_Live-zarifzuhayer.tech-7c3aed?style=for-the-badge&logo=caddy&logoColor=white)](https://zarifzuhayer.tech)
+[![Contest Coverage](https://img.shields.io/badge/Contest_Coverage-120%2F120_Points-10b981?style=for-the-badge&logo=trophy&logoColor=white)](#3-features--judging-criteria-alignment-120--120-points)
+[![Next.js 16](https://img.shields.io/badge/Next.js-16_App_Router-000000?style=for-the-badge&logo=nextdotjs&logoColor=white)](https://nextjs.org)
+[![React 19](https://img.shields.io/badge/React-19-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://react.dev)
+[![TypeScript 5](https://img.shields.io/badge/TypeScript-5_Strict-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+[![PostgreSQL 16](https://img.shields.io/badge/PostgreSQL-16_ACID-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org)
+[![Redis 7](https://img.shields.io/badge/Redis-7_Locks_%26_Queues-DC382D?style=for-the-badge&logo=redis&logoColor=white)](https://redis.io)
+[![Docker](https://img.shields.io/badge/Docker-Compose_Ready-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com)
+[![License: MIT](https://img.shields.io/badge/License-MIT-52525b?style=for-the-badge)](LICENSE)
+
+</div>
+
 ---
 
 ## 1. Project Name
@@ -131,6 +145,41 @@ ClubSphere introduces features going far beyond standard registration portals:
 ---
 
 ## 4. Tech Stack
+
+### 🛠️ Architecture & Technology Stack
+
+#### Core Framework & Frontend
+[![Next.js 16](https://img.shields.io/badge/Next.js_16-000000?style=for-the-badge&logo=nextdotjs&logoColor=white)](https://nextjs.org)
+[![React 19](https://img.shields.io/badge/React_19-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://react.dev)
+[![TypeScript 5](https://img.shields.io/badge/TypeScript_5-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+[![Tailwind CSS v4](https://img.shields.io/badge/Tailwind_CSS_v4-38B2AC?style=for-the-badge&logo=tailwindcss&logoColor=white)](https://tailwindcss.com)
+[![shadcn/ui](https://img.shields.io/badge/shadcn%2Fui-000000?style=for-the-badge&logo=shadcnui&logoColor=white)](https://ui.shadcn.com)
+[![Lucide Icons](https://img.shields.io/badge/Lucide_Icons-F06595?style=for-the-badge&logo=lucide&logoColor=white)](https://lucide.dev)
+
+#### Data Persistence, ORM & Concurrency
+[![PostgreSQL 16](https://img.shields.io/badge/PostgreSQL_16-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org)
+[![Prisma ORM](https://img.shields.io/badge/Prisma_ORM_6.19-2D3748?style=for-the-badge&logo=prisma&logoColor=white)](https://www.prisma.io)
+[![Redis 7](https://img.shields.io/badge/Redis_7-DC382D?style=for-the-badge&logo=redis&logoColor=white)](https://redis.io)
+[![Auth.js](https://img.shields.io/badge/Auth.js-NextAuth-000000?style=for-the-badge&logo=auth0&logoColor=white)](https://authjs.dev)
+[![Bcrypt](https://img.shields.io/badge/Bcrypt_Hashing-4A154B?style=for-the-badge&logo=securityscorecard&logoColor=white)](https://www.npmjs.com/package/bcryptjs)
+
+#### Infrastructure, Reverse Proxy & DevOps
+[![Docker](https://img.shields.io/badge/Docker_Engine-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com)
+[![Docker Compose](https://img.shields.io/badge/Docker_Compose-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://docs.docker.com/compose/)
+[![Caddy 2](https://img.shields.io/badge/Caddy_2_Alpine-1F88C0?style=for-the-badge&logo=caddy&logoColor=white)](https://caddyserver.com)
+[![Let's Encrypt](https://img.shields.io/badge/Let's_Encrypt-Auto_TLS-003A70?style=for-the-badge&logo=letsencrypt&logoColor=white)](https://letsencrypt.org)
+[![Turbopack](https://img.shields.io/badge/Turbopack_Bundler-000000?style=for-the-badge&logo=turbopack&logoColor=white)](https://turbo.build/pack)
+
+#### Specialized Competition & Hardware Engines
+[![HTML5 QR Code](https://img.shields.io/badge/HTML5_QR_Scanner-E34F26?style=for-the-badge&logo=html5&logoColor=white)](https://github.com/mebjas/html5-qrcode)
+[![jsPDF](https://img.shields.io/badge/jsPDF_Print_Engine-E11D48?style=for-the-badge&logo=adobeacrobatreader&logoColor=white)](https://github.com/parallax/jsPDF)
+[![SVG QR Code](https://img.shields.io/badge/SVG_QR_Passes-0284C7?style=for-the-badge&logo=qr-code&logoColor=white)](https://www.npmjs.com/package/qrcode.react)
+[![Sonner](https://img.shields.io/badge/Sonner_Toasts-000000?style=for-the-badge&logo=toast&logoColor=white)](https://sonner.emilkowal.ski)
+[![Canvas Confetti](https://img.shields.io/badge/Canvas_Confetti-F59E0B?style=for-the-badge&logo=target&logoColor=white)](https://www.npmjs.com/package/canvas-confetti)
+
+---
+
+### 📋 Architectural Rationale Matrix
 
 | Layer | Technology | Rationale |
 | :--- | :--- | :--- |
