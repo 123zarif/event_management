@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { Sidebar } from './Sidebar';
 import { Navbar } from './Navbar';
 import { SubNavbar } from './SubNavbar';
 import { CommandMenu } from './CommandMenu';
 import { Footer } from './Footer';
+import { NavigationProgressBar } from './NavigationProgressBar';
 
 interface AppNavigationProps {
   currentUser?: {
@@ -34,6 +35,11 @@ export function AppNavigation({ currentUser, children }: AppNavigationProps) {
 
   return (
     <div className="h-screen overflow-hidden flex flex-row w-full bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 transition-colors">
+      {/* Top viewport navigation progress shimmer */}
+      <Suspense fallback={null}>
+        <NavigationProgressBar />
+      </Suspense>
+
       {/* 1. Persistent Left Sidebar (Desktop collapsible, Mobile drawer) */}
       <Sidebar
         currentUser={currentUser}
