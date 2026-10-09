@@ -102,8 +102,8 @@ export function Navbar({
             )}
           </button>
 
-          {/* Active Context: Festival Context Switcher */}
-          <div className="flex items-center min-w-0">
+          {/* Active Context: Festival Context Switcher (Desktop header only; on mobile it resides in the sidebar drawer) */}
+          <div className="hidden lg:flex items-center min-w-0">
             <FestSwitcher currentUser={currentUser} />
           </div>
         </div>

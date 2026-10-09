@@ -170,8 +170,8 @@ export function Sidebar({ currentUser, collapsed, mobileOpen, onCloseMobile }: S
           </button>
         </div>
 
-        {/* Interactive Festival Switcher */}
-        <div className={`border-b border-zinc-100 dark:border-zinc-900 ${collapsed ? 'p-2 flex justify-center' : 'p-3'}`}>
+        {/* Interactive Festival Switcher (Mobile drawer only) */}
+        <div className={`border-b border-zinc-100 dark:border-zinc-900 lg:hidden ${collapsed ? 'p-2 flex justify-center' : 'p-3'}`}>
           <SidebarFestSwitcher
             collapsed={collapsed}
             currentUser={currentUser}
